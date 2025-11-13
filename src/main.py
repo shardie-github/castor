@@ -309,14 +309,9 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # Configure appropriately for production
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Security middleware (replaces basic CORS)
+from src.security.middleware import setup_security_middleware
+setup_security_middleware(app, metrics_collector, event_logger)
 
 # Tenant isolation middleware
 app.add_middleware(
@@ -419,7 +414,7 @@ async def metrics():
 
 
 # Import routers
-from src.api import tenants, attribution, ai, cost, security, backup, optimization, risk, partners
+from src.api import tenants, attribution, ai, cost, security, backup, optimization, risk, partners, business
 
 # Include API routers
 app.include_router(tenants.router, prefix="/api/v1/tenants", tags=["tenants"])
@@ -431,6 +426,7 @@ app.include_router(backup.router, prefix="/api/v1/backup", tags=["backup"])
 app.include_router(optimization.router, prefix="/api/v1/optimization", tags=["optimization"])
 app.include_router(risk.router, tags=["risks"])
 app.include_router(partners.router, tags=["partners"])
+app.include_router(business.router, tags=["business"])
 
 # Legacy routers (if they exist)
 # from src.api import campaigns, analytics, reports, integrations
