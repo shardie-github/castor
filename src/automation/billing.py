@@ -351,9 +351,41 @@ class BillingAutomation:
         return True
     
     async def _charge_payment_method(self, invoice: Invoice, payment_method: str):
-        """Charge payment method (placeholder - would use payment processor)"""
-        # In production, this would use Stripe, PayPal, etc.
-        logger.info(f"Charging {invoice.amount} to {payment_method} for invoice {invoice.invoice_id}")
+        """Charge payment method using Stripe"""
+        from src.payments.stripe import StripePaymentProcessor
+        from src.telemetry.metrics import MetricsCollector
+        from src.telemetry.events import EventLogger
+        
+        stripe_processor = StripePaymentProcessor(
+            MetricsCollector(),
+            EventLogger()
+        )
+        
+        try:
+            # Create payment intent
+            payment_intent = await stripe_processor.create_payment_intent(
+                amount=invoice.amount,
+                currency=invoice.currency,
+                customer_id=invoice.metadata.get("customer_id"),
+                metadata={"invoice_id": invoice.invoice_id}
+            )
+            
+            # Confirm payment
+            confirmed = await stripe_processor.confirm_payment(
+                payment_intent.intent_id,
+                payment_method
+            )
+            
+            if confirmed.status == "succeeded":
+                logger.info(f"Successfully charged {invoice.amount} for invoice {invoice.invoice_id}")
+                return True
+            else:
+                logger.warning(f"Payment not succeeded: {confirmed.status}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error charging payment method: {e}")
+            raise
     
     async def _send_payment_reminder(self, invoice: Invoice):
         """Send payment reminder email"""
