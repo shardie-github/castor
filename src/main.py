@@ -9,12 +9,20 @@ from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
+import os
 
 from src.config import config
 from src.database import PostgresConnection, TimescaleConnection, RedisConnection
 from src.telemetry.metrics import MetricsCollector
 from src.telemetry.events import EventLogger
 from src.monitoring.health import HealthCheckService
+
+# Multi-tenant and advanced features
+from src.tenants import TenantManager, TenantIsolationMiddleware
+from src.attribution import AttributionEngine
+from src.ai import AIFramework, ContentAnalyzer
+from src.cost import CostTracker
+from src.security.auth import OAuth2Provider, MFAProvider, APIKeyManager
 
 # Initialize global services
 metrics_collector = MetricsCollector()
@@ -44,6 +52,69 @@ redis_conn = RedisConnection(
     password=config.database.redis_password
 )
 
+# Initialize advanced services
+tenant_manager = TenantManager(
+    metrics_collector=metrics_collector,
+    event_logger=event_logger,
+    postgres_conn=postgres_conn
+)
+
+attribution_engine = AttributionEngine(
+    metrics_collector=metrics_collector,
+    event_logger=event_logger,
+    postgres_conn=postgres_conn
+)
+
+# Initialize AI framework
+from src.ai.framework import AIProvider
+
+ai_api_keys = {}
+if os.getenv("OPENAI_API_KEY"):
+    ai_api_keys[AIProvider.OPENAI] = os.getenv("OPENAI_API_KEY")
+if os.getenv("ANTHROPIC_API_KEY"):
+    ai_api_keys[AIProvider.ANTHROPIC] = os.getenv("ANTHROPIC_API_KEY")
+
+ai_framework = AIFramework(
+    primary_provider=AIProvider.OPENAI if AIProvider.OPENAI in ai_api_keys else (list(ai_api_keys.keys())[0] if ai_api_keys else None),
+    api_keys=ai_api_keys
+)
+
+content_analyzer = ContentAnalyzer(
+    ai_framework=ai_framework,
+    metrics_collector=metrics_collector,
+    event_logger=event_logger,
+    postgres_conn=postgres_conn
+)
+
+cost_tracker = CostTracker(
+    metrics_collector=metrics_collector,
+    event_logger=event_logger,
+    postgres_conn=postgres_conn
+)
+
+# Initialize security services
+oauth2_provider = OAuth2Provider(
+    client_id=os.getenv("OAUTH_CLIENT_ID", "default_client"),
+    client_secret=os.getenv("OAUTH_CLIENT_SECRET", "default_secret"),
+    redirect_uri=os.getenv("OAUTH_REDIRECT_URI", "http://localhost:8000/callback"),
+    jwt_secret=config.jwt_secret,
+    metrics_collector=metrics_collector,
+    event_logger=event_logger,
+    postgres_conn=postgres_conn
+)
+
+mfa_provider = MFAProvider(
+    metrics_collector=metrics_collector,
+    event_logger=event_logger,
+    postgres_conn=postgres_conn
+)
+
+api_key_manager = APIKeyManager(
+    metrics_collector=metrics_collector,
+    event_logger=event_logger,
+    postgres_conn=postgres_conn
+)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -58,6 +129,21 @@ async def lifespan(app: FastAPI):
     
     # Initialize event logger
     await event_logger.initialize()
+    
+    # Store services in app state for dependency injection
+    app.state.metrics_collector = metrics_collector
+    app.state.event_logger = event_logger
+    app.state.postgres_conn = postgres_conn
+    app.state.timescale_conn = timescale_conn
+    app.state.redis_conn = redis_conn
+    app.state.tenant_manager = tenant_manager
+    app.state.attribution_engine = attribution_engine
+    app.state.ai_framework = ai_framework
+    app.state.content_analyzer = content_analyzer
+    app.state.cost_tracker = cost_tracker
+    app.state.oauth2_provider = oauth2_provider
+    app.state.mfa_provider = mfa_provider
+    app.state.api_key_manager = api_key_manager
     
     yield
     
@@ -86,6 +172,12 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+)
+
+# Tenant isolation middleware
+app.add_middleware(
+    TenantIsolationMiddleware,
+    tenant_manager=tenant_manager
 )
 
 
@@ -183,6 +275,16 @@ async def metrics():
 
 
 # Import routers
+from src.api import tenants, attribution, ai, cost, security
+
+# Include API routers
+app.include_router(tenants.router, prefix="/api/v1/tenants", tags=["tenants"])
+app.include_router(attribution.router, prefix="/api/v1/attribution", tags=["attribution"])
+app.include_router(ai.router, prefix="/api/v1/ai", tags=["ai"])
+app.include_router(cost.router, prefix="/api/v1/cost", tags=["cost"])
+app.include_router(security.router, prefix="/api/v1/security", tags=["security"])
+
+# Legacy routers (if they exist)
 # from src.api import campaigns, analytics, reports, integrations
 # app.include_router(campaigns.router, prefix="/api/v1/campaigns", tags=["campaigns"])
 # app.include_router(analytics.router, prefix="/api/v1/analytics", tags=["analytics"])
