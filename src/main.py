@@ -416,6 +416,31 @@ async def metrics():
 # Import routers
 from src.api import tenants, attribution, ai, cost, security, backup, optimization, risk, partners, business
 
+# DELTA:20251113_064143 Import ETL and Match routers
+try:
+    from src.api import etl
+    ETL_AVAILABLE = True
+except ImportError:
+    ETL_AVAILABLE = False
+
+try:
+    from src.api import match
+    MATCH_AVAILABLE = True
+except ImportError:
+    MATCH_AVAILABLE = False
+
+try:
+    from src.api import io
+    IO_AVAILABLE = True
+except ImportError:
+    IO_AVAILABLE = False
+
+try:
+    from src.api import deals
+    DEALS_AVAILABLE = True
+except ImportError:
+    DEALS_AVAILABLE = False
+
 # Include API routers
 app.include_router(tenants.router, prefix="/api/v1/tenants", tags=["tenants"])
 app.include_router(attribution.router, prefix="/api/v1/attribution", tags=["attribution"])
@@ -427,6 +452,22 @@ app.include_router(optimization.router, prefix="/api/v1/optimization", tags=["op
 app.include_router(risk.router, tags=["risks"])
 app.include_router(partners.router, tags=["partners"])
 app.include_router(business.router, tags=["business"])
+
+# DELTA:20251113_064143 Include ETL router if available and feature flag enabled
+if ETL_AVAILABLE and os.getenv("ENABLE_ETL_CSV_UPLOAD", "false").lower() == "true":
+    app.include_router(etl.router)
+
+# DELTA:20251113_064143 Include Match router if available and feature flag enabled
+if MATCH_AVAILABLE and os.getenv("ENABLE_MATCHMAKING", "false").lower() == "true":
+    app.include_router(match.router)
+
+# DELTA:20251113_064143 Include IO router if available and feature flag enabled
+if IO_AVAILABLE and os.getenv("ENABLE_IO_BOOKINGS", "false").lower() == "true":
+    app.include_router(io.router)
+
+# DELTA:20251113_064143 Include Deals router if available and feature flag enabled
+if DEALS_AVAILABLE and os.getenv("ENABLE_DEAL_PIPELINE", "false").lower() == "true":
+    app.include_router(deals.router)
 
 # Legacy routers (if they exist)
 # from src.api import campaigns, analytics, reports, integrations
