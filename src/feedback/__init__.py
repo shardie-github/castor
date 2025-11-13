@@ -33,6 +33,30 @@ from src.feedback.auto_escalation import (
     EscalationType,
     EscalationSeverity
 )
+from src.feedback.user_research import (
+    UserResearchValidation,
+    ResearchType,
+    ResearchStatus
+)
+from src.feedback.mvp_success_tracker import (
+    MVPSuccessTracker,
+    ActivationEvent,
+    FeatureAdoptionStatus
+)
+from src.feedback.in_app_feedback import (
+    InAppFeedbackSystem,
+    FeedbackType,
+    FeedbackPriority,
+    FeedbackStatus
+)
+from src.feedback.quarterly_review import (
+    QuarterlyReviewAutomation,
+    ReviewStatus
+)
+from src.feedback.feedback_prioritization import (
+    FeedbackPrioritizationEngine,
+    PriorityScore
+)
 
 __all__ = [
     "JourneySurveySystem",
@@ -51,4 +75,18 @@ __all__ = [
     "AutoEscalationSystem",
     "EscalationType",
     "EscalationSeverity",
+    "UserResearchValidation",
+    "ResearchType",
+    "ResearchStatus",
+    "MVPSuccessTracker",
+    "ActivationEvent",
+    "FeatureAdoptionStatus",
+    "InAppFeedbackSystem",
+    "FeedbackType",
+    "FeedbackPriority",
+    "FeedbackStatus",
+    "QuarterlyReviewAutomation",
+    "ReviewStatus",
+    "FeedbackPrioritizationEngine",
+    "PriorityScore",
 ]
