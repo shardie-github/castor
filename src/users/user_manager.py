@@ -19,6 +19,7 @@ import jwt
 
 from src.telemetry.metrics import MetricsCollector
 from src.telemetry.events import EventLogger
+from src.database import PostgresConnection, RedisConnection
 
 logger = logging.getLogger(__name__)
 
@@ -76,14 +77,22 @@ class UserManager:
         self,
         metrics_collector: MetricsCollector,
         event_logger: EventLogger,
-        jwt_secret: str = "change-me-in-production"
+        jwt_secret: str = "change-me-in-production",
+        postgres_conn: Optional[PostgresConnection] = None,
+        redis_conn: Optional[RedisConnection] = None
     ):
         self.metrics = metrics_collector
         self.events = event_logger
         self.jwt_secret = jwt_secret
-        # In production, this would connect to PostgreSQL
-        self._users: Dict[str, User] = {}
-        self._sessions: Dict[str, Session] = {}
+        self.postgres = postgres_conn
+        self.redis = redis_conn
+        # Fallback to in-memory storage if no database connection
+        self._use_db = postgres_conn is not None
+        self._use_redis = redis_conn is not None
+        if not self._use_db:
+            self._users: Dict[str, User] = {}
+        if not self._use_redis:
+            self._sessions: Dict[str, Session] = {}
         
     def _hash_password(self, password: str) -> str:
         """Hash password using SHA-256 (use bcrypt in production)"""

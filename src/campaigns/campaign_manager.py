@@ -17,6 +17,7 @@ from uuid import uuid4
 
 from src.telemetry.metrics import MetricsCollector, LatencyTracker
 from src.telemetry.events import EventLogger
+from src.database import PostgresConnection
 
 logger = logging.getLogger(__name__)
 
@@ -91,13 +92,17 @@ class CampaignManager:
     def __init__(
         self,
         metrics_collector: MetricsCollector,
-        event_logger: EventLogger
+        event_logger: EventLogger,
+        postgres_conn: Optional[PostgresConnection] = None
     ):
         self.metrics = metrics_collector
         self.events = event_logger
-        # In production, this would connect to PostgreSQL
-        self._campaigns: Dict[str, Campaign] = {}
-        self._sponsors: Dict[str, Sponsor] = {}
+        self.postgres = postgres_conn
+        # Fallback to in-memory storage if no database connection
+        self._use_db = postgres_conn is not None
+        if not self._use_db:
+            self._campaigns: Dict[str, Campaign] = {}
+            self._sponsors: Dict[str, Sponsor] = {}
         
     async def create_campaign(
         self,

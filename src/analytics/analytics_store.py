@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from enum import Enum
 
 from src.telemetry.metrics import MetricsCollector
+from src.database import TimescaleConnection, PostgresConnection
 
 logger = logging.getLogger(__name__)
 
@@ -85,19 +86,48 @@ class AnalyticsStore:
     - Attribution tracking
     """
     
-    def __init__(self, metrics_collector: MetricsCollector):
+    def __init__(
+        self,
+        metrics_collector: MetricsCollector,
+        timescale_conn: Optional[TimescaleConnection] = None,
+        postgres_conn: Optional[PostgresConnection] = None
+    ):
         self.metrics = metrics_collector
-        # In production, this would connect to InfluxDB/TimescaleDB
-        self._storage: Dict[str, List[ListenerMetric]] = {}
-        self._attribution_events: Dict[str, List[AttributionEvent]] = {}
-        self._campaign_performance: Dict[str, CampaignPerformance] = {}
+        self.timescale = timescale_conn
+        self.postgres = postgres_conn
+        # Fallback to in-memory storage if no database connection
+        self._use_db = timescale_conn is not None
+        if not self._use_db:
+            self._storage: Dict[str, List[ListenerMetric]] = {}
+            self._attribution_events: Dict[str, List[AttributionEvent]] = {}
+            self._campaign_performance: Dict[str, CampaignPerformance] = {}
         
     async def store_listener_metric(self, metric: ListenerMetric):
         """Store a listener metric"""
-        key = f"{metric.podcast_id}_{metric.metric_type.value}"
-        if key not in self._storage:
-            self._storage[key] = []
-        self._storage[key].append(metric)
+        if self._use_db and self.timescale:
+            # Store in TimescaleDB
+            query = """
+                INSERT INTO listener_metrics 
+                (timestamp, podcast_id, episode_id, metric_type, value, platform, country, device)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            """
+            await self.timescale.execute(
+                query,
+                metric.timestamp,
+                metric.podcast_id,
+                metric.episode_id,
+                metric.metric_type.value,
+                metric.value,
+                metric.platform,
+                metric.country,
+                metric.device
+            )
+        else:
+            # Fallback to in-memory storage
+            key = f"{metric.podcast_id}_{metric.metric_type.value}"
+            if key not in self._storage:
+                self._storage[key] = []
+            self._storage[key].append(metric)
         
         # Record telemetry
         self.metrics.increment_counter(
@@ -107,10 +137,32 @@ class AnalyticsStore:
     
     async def store_attribution_event(self, event: AttributionEvent):
         """Store an attribution event"""
-        campaign_key = f"campaign_{event.campaign_id}"
-        if campaign_key not in self._attribution_events:
-            self._attribution_events[campaign_key] = []
-        self._attribution_events[campaign_key].append(event)
+        if self._use_db and self.postgres:
+            # Store in PostgreSQL
+            query = """
+                INSERT INTO attribution_events 
+                (event_id, timestamp, campaign_id, podcast_id, episode_id, attribution_method, 
+                 conversion_value, conversion_type, user_id)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            """
+            await self.postgres.execute(
+                query,
+                event.event_id,
+                event.timestamp,
+                event.campaign_id,
+                event.podcast_id,
+                event.episode_id,
+                event.attribution_method,
+                event.conversion_value,
+                event.conversion_type,
+                event.user_id
+            )
+        else:
+            # Fallback to in-memory storage
+            campaign_key = f"campaign_{event.campaign_id}"
+            if campaign_key not in self._attribution_events:
+                self._attribution_events[campaign_key] = []
+            self._attribution_events[campaign_key].append(event)
         
         # Record telemetry
         self.metrics.increment_counter(
@@ -128,31 +180,72 @@ class AnalyticsStore:
         episode_id: Optional[str] = None
     ) -> List[ListenerMetric]:
         """Get listener metrics for a time range"""
-        key = f"{podcast_id}_{metric_type.value}"
-        metrics = self._storage.get(key, [])
+        import time
+        start_time = time.time()
         
-        # Filter by date range
-        filtered = [
-            m for m in metrics
-            if start_date <= m.timestamp <= end_date
-        ]
-        
-        # Filter by platform if specified
-        if platform:
-            filtered = [m for m in filtered if m.platform == platform]
-        
-        # Filter by episode if specified
-        if episode_id:
-            filtered = [m for m in filtered if m.episode_id == episode_id]
+        if self._use_db and self.timescale:
+            # Query from TimescaleDB
+            query = """
+                SELECT timestamp, podcast_id, episode_id, metric_type, value, platform, country, device
+                FROM listener_metrics
+                WHERE podcast_id = $1 AND metric_type = $2 
+                  AND timestamp >= $3 AND timestamp <= $4
+            """
+            params = [podcast_id, metric_type.value, start_date, end_date]
+            
+            if platform:
+                query += " AND platform = $5"
+                params.append(platform)
+            
+            if episode_id:
+                query += " AND episode_id = $6"
+                params.append(episode_id)
+            
+            rows = await self.timescale.fetch(query, *params)
+            
+            metrics = [
+                ListenerMetric(
+                    timestamp=row["timestamp"],
+                    podcast_id=row["podcast_id"],
+                    episode_id=row["episode_id"],
+                    metric_type=MetricType(row["metric_type"]),
+                    value=float(row["value"]),
+                    platform=row["platform"],
+                    country=row["country"],
+                    device=row["device"]
+                )
+                for row in rows
+            ]
+        else:
+            # Fallback to in-memory storage
+            key = f"{podcast_id}_{metric_type.value}"
+            metrics = self._storage.get(key, [])
+            
+            # Filter by date range
+            filtered = [
+                m for m in metrics
+                if start_date <= m.timestamp <= end_date
+            ]
+            
+            # Filter by platform if specified
+            if platform:
+                filtered = [m for m in filtered if m.platform == platform]
+            
+            # Filter by episode if specified
+            if episode_id:
+                filtered = [m for m in filtered if m.episode_id == episode_id]
+            
+            metrics = filtered
         
         # Record query telemetry
+        latency = time.time() - start_time
         self.metrics.record_histogram(
             "analytics_query_latency",
-            value=0.1,  # Placeholder
+            latency,
             tags={"metric_type": metric_type.value, "podcast_id": podcast_id}
         )
         
-        return filtered
+        return metrics
     
     async def get_attribution_events(
         self,
