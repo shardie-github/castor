@@ -18,6 +18,11 @@ from src.feedback.kpi_dashboard import KPIDashboardAggregator
 from src.feedback.retro_agent import RetroAgent
 from src.feedback.ab_testing import ABTestingFramework
 from src.feedback.auto_escalation import AutoEscalationSystem
+from src.feedback.user_research import UserResearchValidation
+from src.feedback.mvp_success_tracker import MVPSuccessTracker, ActivationEvent
+from src.feedback.in_app_feedback import InAppFeedbackSystem, FeedbackType
+from src.feedback.quarterly_review import QuarterlyReviewAutomation
+from src.feedback.feedback_prioritization import FeedbackPrioritizationEngine
 from src.campaigns.campaign_manager import CampaignManager
 from src.reporting.report_generator import ReportGenerator
 from src.users.user_manager import UserManager
@@ -25,6 +30,7 @@ from src.telemetry.metrics import MetricsCollector
 from src.telemetry.events import EventLogger
 from src.measurement.continuous_metrics import ContinuousMeasurement
 from src.monetization.pricing import PricingManager
+from src.operations.support import SupportIntegration
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +50,8 @@ class FeedbackLoopIntegration:
         campaign_manager: CampaignManager,
         report_generator: ReportGenerator,
         measurement: ContinuousMeasurement,
-        pricing_manager: PricingManager
+        pricing_manager: PricingManager,
+        support_integration: Optional[SupportIntegration] = None
     ):
         self.metrics = metrics_collector
         self.events = event_logger
@@ -53,6 +60,7 @@ class FeedbackLoopIntegration:
         self.reports = report_generator
         self.measurement = measurement
         self.pricing = pricing_manager
+        self.support = support_integration
         
         # Initialize feedback systems
         self.surveys = JourneySurveySystem(metrics_collector, event_logger)
@@ -76,6 +84,32 @@ class FeedbackLoopIntegration:
             event_logger,
             self.kpi_dashboard,
             self.metrics_tracker
+        )
+        
+        # Initialize new feedback systems
+        self.user_research = UserResearchValidation(metrics_collector, event_logger)
+        self.mvp_tracker = MVPSuccessTracker(
+            metrics_collector,
+            event_logger,
+            self.metrics_tracker,
+            self.ab_testing
+        )
+        self.in_app_feedback = InAppFeedbackSystem(
+            metrics_collector,
+            event_logger,
+            measurement,
+            support_integration or SupportIntegration(metrics_collector, event_logger)
+        )
+        self.quarterly_review = QuarterlyReviewAutomation(
+            metrics_collector,
+            event_logger,
+            self.kpi_dashboard,
+            self.metrics_tracker,
+            self.mvp_tracker
+        )
+        self.feedback_prioritization = FeedbackPrioritizationEngine(
+            metrics_collector,
+            event_logger
         )
         
         # Set up event listeners
@@ -303,3 +337,96 @@ class FeedbackLoopIntegration:
             persona_segment=persona_segment,
             days=days
         )
+    
+    async def track_user_activation(
+        self,
+        user_id: str,
+        event: ActivationEvent,
+        time_from_signup: Optional[float] = None
+    ):
+        """Track user activation event"""
+        await self.mvp_tracker.track_activation_event(
+            user_id=user_id,
+            event=event,
+            time_from_signup=time_from_signup
+        )
+    
+    async def track_feature_usage(
+        self,
+        user_id: str,
+        feature_name: str
+    ):
+        """Track feature usage for adoption metrics"""
+        await self.mvp_tracker.track_feature_adoption(
+            user_id=user_id,
+            feature_name=feature_name
+        )
+    
+    async def submit_in_app_feedback(
+        self,
+        user_id: str,
+        feedback_type: FeedbackType,
+        content: str,
+        nps_score: Optional[int] = None,
+        feature_name: Optional[str] = None
+    ):
+        """Submit in-app feedback"""
+        return await self.in_app_feedback.submit_feedback(
+            user_id=user_id,
+            feedback_type=feedback_type,
+            content=content,
+            nps_score=nps_score,
+            feature_name=feature_name
+        )
+    
+    async def get_prioritized_feedback(
+        self,
+        days: int = 30
+    ):
+        """Get prioritized feedback with optimization recommendations"""
+        feedback_list = await self.in_app_feedback.prioritize_feedback(days=days)
+        
+        # Get feedback objects
+        feedback_objects = [
+            self.in_app_feedback.get_feedback(f.feedback_id)
+            for f in feedback_list
+            if self.in_app_feedback.get_feedback(f.feedback_id)
+        ]
+        
+        # Prioritize using engine
+        prioritized = await self.feedback_prioritization.prioritize_feedback_batch(
+            feedback_objects
+        )
+        
+        # Get research sessions for context
+        research_sessions = self.user_research.list_sessions()
+        
+        # Generate recommendations
+        recommendations = await self.feedback_prioritization.generate_optimization_recommendations(
+            prioritized,
+            research_sessions
+        )
+        
+        return {
+            "prioritized_feedback": prioritized,
+            "recommendations": recommendations
+        }
+    
+    async def run_quarterly_review_cycle(
+        self,
+        quarter: str,
+        start_date: datetime,
+        end_date: datetime
+    ):
+        """Run a complete quarterly review cycle"""
+        # Schedule review
+        review = await self.quarterly_review.schedule_quarterly_review(
+            quarter=quarter,
+            start_date=start_date,
+            end_date=end_date
+        )
+        
+        # Run analysis
+        review = await self.quarterly_review.run_quarterly_review(review.review_id)
+        
+        return review
