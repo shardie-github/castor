@@ -20,9 +20,14 @@ from src.monitoring.health import HealthCheckService
 # Multi-tenant and advanced features
 from src.tenants import TenantManager, TenantIsolationMiddleware
 from src.attribution import AttributionEngine
+from src.attribution.cross_platform import CrossPlatformAttribution
 from src.ai import AIFramework, ContentAnalyzer
 from src.cost import CostTracker
 from src.security.auth import OAuth2Provider, MFAProvider, APIKeyManager
+from src.security.authorization import RBACManager, ABACManager, PermissionEngine
+from src.backup import BackupManager, RestoreManager
+from src.disaster_recovery import FailoverManager, ReplicationManager
+from src.optimization import ABTestingFramework, ChurnPredictor, ChurnAnalyzer, OnboardingAnalyzer
 
 # Initialize global services
 metrics_collector = MetricsCollector()
@@ -115,6 +120,82 @@ api_key_manager = APIKeyManager(
     postgres_conn=postgres_conn
 )
 
+# Initialize authorization services
+rbac_manager = RBACManager(
+    metrics_collector=metrics_collector,
+    event_logger=event_logger,
+    postgres_conn=postgres_conn
+)
+
+abac_manager = ABACManager(
+    metrics_collector=metrics_collector,
+    event_logger=event_logger,
+    postgres_conn=postgres_conn
+)
+
+permission_engine = PermissionEngine(
+    rbac_manager=rbac_manager,
+    abac_manager=abac_manager,
+    metrics_collector=metrics_collector,
+    event_logger=event_logger
+)
+
+# Initialize cross-platform attribution
+cross_platform_attribution = CrossPlatformAttribution(
+    metrics_collector=metrics_collector,
+    event_logger=event_logger,
+    postgres_conn=postgres_conn
+)
+
+# Initialize backup and disaster recovery
+backup_manager = BackupManager(
+    metrics_collector=metrics_collector,
+    event_logger=event_logger,
+    postgres_conn=postgres_conn,
+    backup_storage_path=os.getenv("BACKUP_STORAGE_PATH", "/backups"),
+    aws_s3_bucket=os.getenv("AWS_S3_BACKUP_BUCKET"),
+    aws_region=os.getenv("AWS_REGION", "us-east-1")
+)
+
+failover_manager = FailoverManager(
+    metrics_collector=metrics_collector,
+    event_logger=event_logger,
+    postgres_conn=postgres_conn,
+    primary_region=os.getenv("PRIMARY_REGION", "us-east-1"),
+    secondary_region=os.getenv("SECONDARY_REGION", "us-west-2")
+)
+
+replication_manager = ReplicationManager(
+    metrics_collector=metrics_collector,
+    event_logger=event_logger,
+    postgres_conn=postgres_conn
+)
+
+# Initialize optimization services
+ab_testing = ABTestingFramework(
+    metrics_collector=metrics_collector,
+    event_logger=event_logger,
+    postgres_conn=postgres_conn
+)
+
+churn_predictor = ChurnPredictor(
+    metrics_collector=metrics_collector,
+    event_logger=event_logger,
+    postgres_conn=postgres_conn
+)
+
+churn_analyzer = ChurnAnalyzer(
+    metrics_collector=metrics_collector,
+    event_logger=event_logger,
+    postgres_conn=postgres_conn
+)
+
+onboarding_analyzer = OnboardingAnalyzer(
+    metrics_collector=metrics_collector,
+    event_logger=event_logger,
+    postgres_conn=postgres_conn
+)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -138,12 +219,23 @@ async def lifespan(app: FastAPI):
     app.state.redis_conn = redis_conn
     app.state.tenant_manager = tenant_manager
     app.state.attribution_engine = attribution_engine
+    app.state.cross_platform_attribution = cross_platform_attribution
     app.state.ai_framework = ai_framework
     app.state.content_analyzer = content_analyzer
     app.state.cost_tracker = cost_tracker
     app.state.oauth2_provider = oauth2_provider
     app.state.mfa_provider = mfa_provider
     app.state.api_key_manager = api_key_manager
+    app.state.rbac_manager = rbac_manager
+    app.state.abac_manager = abac_manager
+    app.state.permission_engine = permission_engine
+    app.state.backup_manager = backup_manager
+    app.state.failover_manager = failover_manager
+    app.state.replication_manager = replication_manager
+    app.state.ab_testing = ab_testing
+    app.state.churn_predictor = churn_predictor
+    app.state.churn_analyzer = churn_analyzer
+    app.state.onboarding_analyzer = onboarding_analyzer
     
     yield
     
@@ -275,7 +367,7 @@ async def metrics():
 
 
 # Import routers
-from src.api import tenants, attribution, ai, cost, security
+from src.api import tenants, attribution, ai, cost, security, backup, optimization
 
 # Include API routers
 app.include_router(tenants.router, prefix="/api/v1/tenants", tags=["tenants"])
@@ -283,6 +375,8 @@ app.include_router(attribution.router, prefix="/api/v1/attribution", tags=["attr
 app.include_router(ai.router, prefix="/api/v1/ai", tags=["ai"])
 app.include_router(cost.router, prefix="/api/v1/cost", tags=["cost"])
 app.include_router(security.router, prefix="/api/v1/security", tags=["security"])
+app.include_router(backup.router, prefix="/api/v1/backup", tags=["backup"])
+app.include_router(optimization.router, prefix="/api/v1/optimization", tags=["optimization"])
 
 # Legacy routers (if they exist)
 # from src.api import campaigns, analytics, reports, integrations
