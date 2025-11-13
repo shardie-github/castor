@@ -2,6 +2,8 @@
 
 This directory contains foundational research, market analysis, and strategic planning documents for the podcast analytics and sponsorship tool (castor).
 
+**📋 [Start Here: Research Master Index](./RESEARCH_MASTER_INDEX.md)** - Comprehensive overview and cross-references for all research documents.
+
 ## Document Overview
 
 ### 1. [Market Research](./market-research.md)
@@ -97,15 +99,57 @@ These documents are living resources that should be:
 - **Referenced** during product planning and feature prioritization
 - **Validated** through user testing and data analysis
 
+## Document Relationships
+
+All documents are interconnected and should be used together:
+
+```
+User Persona Matrix → Identifies personas and their JTBD
+         ↓
+Pain Points Analysis → Maps pain points to personas and workflows
+         ↓
+Continuous Discovery → Validates pain points through research
+         ↓
+Success Hypotheses → Addresses pain points with product solutions
+         ↓
+KPI Framework → Measures success of hypotheses
+         ↓
+System Architecture → Implements solutions with technical architecture
+         ↓
+User Journeys → Maps solutions to user workflows
+```
+
+## Quick Start Guide
+
+**For Product Managers:**
+1. Start with [Research Master Index](./RESEARCH_MASTER_INDEX.md) for overview
+2. Review [User Persona Matrix](./user-persona-matrix.md) to understand users
+3. Check [Pain Points Analysis](./pain-points-analysis.md) for prioritization
+4. Reference [Success Hypotheses](./success-hypotheses.md) for product direction
+5. Track progress with [KPI Framework](./kpi-framework.md)
+
+**For Engineers:**
+1. Start with [System Architecture](../architecture/system-architecture.md)
+2. Reference [Success Hypotheses](./success-hypotheses.md) for feature requirements
+3. Use [KPI Framework](./kpi-framework.md) for telemetry requirements
+4. Check [User Journeys](./user-journeys.md) for workflow context
+
+**For UX/Design:**
+1. Start with [User Persona Matrix](./user-persona-matrix.md)
+2. Review [User Journeys](./user-journeys.md) for workflow design
+3. Check [Pain Points Analysis](./pain-points-analysis.md) for UX opportunities
+4. Reference [Continuous Discovery](./continuous-discovery-cadence.md) for research methods
+
 ## Next Steps
 
 1. **Validate hypotheses** through MVP testing with beta users
-2. **Conduct user research** to validate personas and journeys
-3. **Build MVP** focusing on top 3 underserved outcomes
-4. **Measure KPIs** weekly and review monthly
+2. **Conduct user research** following [Continuous Discovery Cadence](./continuous-discovery-cadence.md)
+3. **Build MVP** focusing on top 3 underserved outcomes (see [Success Hypotheses](./success-hypotheses.md))
+4. **Measure KPIs** weekly using [KPI Framework](./kpi-framework.md)
 5. **Iterate** based on data and user feedback
 
 ---
 
-*Last Updated: [Current Date]*
-*Maintained by: Product Team*
+*Last Updated: [Current Date]*  
+*Maintained by: Product Team*  
+*See [Research Master Index](./RESEARCH_MASTER_INDEX.md) for comprehensive overview*
