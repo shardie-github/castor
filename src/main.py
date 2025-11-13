@@ -28,6 +28,10 @@ from src.security.authorization import RBACManager, ABACManager, PermissionEngin
 from src.backup import BackupManager, RestoreManager
 from src.disaster_recovery import FailoverManager, ReplicationManager
 from src.optimization import ABTestingFramework, ChurnPredictor, ChurnAnalyzer, OnboardingAnalyzer
+from src.operations.risk_management import RiskManager
+from src.partners import ReferralProgram, MarketplaceManager, PartnerPortal
+from src.automation.team_automation import TaskScheduler
+from src.self_service.onboarding_wizard import OnboardingWizard
 
 # Initialize global services
 metrics_collector = MetricsCollector()
@@ -196,6 +200,48 @@ onboarding_analyzer = OnboardingAnalyzer(
     postgres_conn=postgres_conn
 )
 
+# Initialize risk management
+risk_manager = RiskManager(
+    postgres_conn=postgres_conn,
+    metrics_collector=metrics_collector,
+    event_logger=event_logger
+)
+
+# Initialize partnership tools
+referral_program = ReferralProgram(
+    postgres_conn=postgres_conn,
+    metrics_collector=metrics_collector,
+    event_logger=event_logger
+)
+
+marketplace_manager = MarketplaceManager(
+    postgres_conn=postgres_conn,
+    metrics_collector=metrics_collector,
+    event_logger=event_logger
+)
+
+partner_portal = PartnerPortal(
+    postgres_conn=postgres_conn,
+    referral_program=referral_program,
+    marketplace_manager=marketplace_manager,
+    metrics_collector=metrics_collector,
+    event_logger=event_logger
+)
+
+# Initialize automation
+task_scheduler = TaskScheduler(
+    postgres_conn=postgres_conn,
+    metrics_collector=metrics_collector,
+    event_logger=event_logger
+)
+
+# Initialize self-service
+onboarding_wizard = OnboardingWizard(
+    postgres_conn=postgres_conn,
+    metrics_collector=metrics_collector,
+    event_logger=event_logger
+)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -236,6 +282,12 @@ async def lifespan(app: FastAPI):
     app.state.churn_predictor = churn_predictor
     app.state.churn_analyzer = churn_analyzer
     app.state.onboarding_analyzer = onboarding_analyzer
+    app.state.risk_manager = risk_manager
+    app.state.referral_program = referral_program
+    app.state.marketplace_manager = marketplace_manager
+    app.state.partner_portal = partner_portal
+    app.state.task_scheduler = task_scheduler
+    app.state.onboarding_wizard = onboarding_wizard
     
     yield
     
@@ -367,7 +419,7 @@ async def metrics():
 
 
 # Import routers
-from src.api import tenants, attribution, ai, cost, security, backup, optimization
+from src.api import tenants, attribution, ai, cost, security, backup, optimization, risk, partners
 
 # Include API routers
 app.include_router(tenants.router, prefix="/api/v1/tenants", tags=["tenants"])
@@ -377,6 +429,8 @@ app.include_router(cost.router, prefix="/api/v1/cost", tags=["cost"])
 app.include_router(security.router, prefix="/api/v1/security", tags=["security"])
 app.include_router(backup.router, prefix="/api/v1/backup", tags=["backup"])
 app.include_router(optimization.router, prefix="/api/v1/optimization", tags=["optimization"])
+app.include_router(risk.router, tags=["risks"])
+app.include_router(partners.router, tags=["partners"])
 
 # Legacy routers (if they exist)
 # from src.api import campaigns, analytics, reports, integrations
