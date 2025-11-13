@@ -441,6 +441,18 @@ try:
 except ImportError:
     DEALS_AVAILABLE = False
 
+try:
+    from src.api import dashboard
+    DASHBOARD_AVAILABLE = True
+except ImportError:
+    DASHBOARD_AVAILABLE = False
+
+try:
+    from src.api import automation
+    AUTOMATION_AVAILABLE = True
+except ImportError:
+    AUTOMATION_AVAILABLE = False
+
 # Include API routers
 app.include_router(tenants.router, prefix="/api/v1/tenants", tags=["tenants"])
 app.include_router(attribution.router, prefix="/api/v1/attribution", tags=["attribution"])
@@ -468,6 +480,14 @@ if IO_AVAILABLE and os.getenv("ENABLE_IO_BOOKINGS", "false").lower() == "true":
 # DELTA:20251113_064143 Include Deals router if available and feature flag enabled
 if DEALS_AVAILABLE and os.getenv("ENABLE_DEAL_PIPELINE", "false").lower() == "true":
     app.include_router(deals.router)
+
+# DELTA:20251113_064143 Include Dashboard router if available and feature flag enabled
+if DASHBOARD_AVAILABLE and os.getenv("ENABLE_NEW_DASHBOARD_CARDS", "false").lower() == "true":
+    app.include_router(dashboard.router)
+
+# DELTA:20251113_064143 Include Automation router if available and feature flag enabled
+if AUTOMATION_AVAILABLE and os.getenv("ENABLE_AUTOMATION_JOBS", "false").lower() == "true":
+    app.include_router(automation.router)
 
 # Legacy routers (if they exist)
 # from src.api import campaigns, analytics, reports, integrations

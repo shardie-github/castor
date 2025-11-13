@@ -12,6 +12,7 @@ This migration pack adds the following **additive-only** changes:
 3. **IO Bookings Table** - Insertion orders with flight dates, promo codes, vanity URLs
 4. **Matches Table** - Advertiser-podcast matchmaking scores
 5. **Campaigns Extension** - Add `stage` and `stage_changed_at` columns for deal pipeline
+6. **Metrics Daily View** - Materialized view for daily aggregated metrics
 
 ## Preconditions
 
@@ -36,6 +37,7 @@ psql -U postgres -d podcast_analytics
 # Run migrations
 \i migrations/20251113_064143/01_detect_and_add.sql
 \i migrations/20251113_064143/02_policies.sql
+\i migrations/20251113_064143/03_metrics_daily_view.sql
 ```
 
 Or via Python:
@@ -57,6 +59,9 @@ async def run_migrations():
     with open('migrations/20251113_064143/02_policies.sql', 'r') as f:
         await conn.execute(f.read())
     
+    with open('migrations/20251113_064143/03_metrics_daily_view.sql', 'r') as f:
+        await conn.execute(f.read())
+    
     await conn.close()
 
 asyncio.run(run_migrations())
@@ -72,6 +77,10 @@ WHERE table_name IN ('etl_imports', 'ad_units', 'io_bookings', 'matches');
 -- Check campaigns.stage column exists
 SELECT column_name FROM information_schema.columns 
 WHERE table_name = 'campaigns' AND column_name IN ('stage', 'stage_changed_at');
+
+-- Check metrics_daily view exists
+SELECT table_name FROM information_schema.views 
+WHERE table_name = 'metrics_daily';
 
 -- Check RLS policies
 SELECT tablename, policyname FROM pg_policies 
@@ -90,6 +99,12 @@ DROP POLICY IF EXISTS tenant_isolation_matches ON matches;
 DROP POLICY IF EXISTS tenant_isolation_io_bookings ON io_bookings;
 DROP POLICY IF EXISTS tenant_isolation_ad_units ON ad_units;
 DROP POLICY IF EXISTS tenant_isolation_etl_imports ON etl_imports;
+
+-- Drop materialized view
+DROP MATERIALIZED VIEW IF EXISTS metrics_daily;
+
+-- Drop refresh function
+DROP FUNCTION IF EXISTS refresh_metrics_daily();
 
 -- Drop tables (in reverse order due to FKs)
 DROP TABLE IF EXISTS matches;
