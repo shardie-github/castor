@@ -230,6 +230,7 @@ class UpdateAgent:
         # 2. Aggregate analytics data
         # 3. Sync data across systems
         # 4. Update caches
+        # 5. Run feedback loop checks (escalations, metrics)
         
         self.metrics.increment_counter("update_agent_runs")
         logger.debug("Update agent running scheduled tasks")
