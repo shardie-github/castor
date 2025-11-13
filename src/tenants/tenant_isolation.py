@@ -40,8 +40,16 @@ def get_current_tenant(request: Request) -> Optional[str]:
         if len(parts) >= 3:
             # tenant-slug.example.com
             subdomain = parts[0]
-            # TODO: Lookup tenant by slug
-            pass
+            # DELTA:20251113_064143 Lookup tenant by slug
+            try:
+                tenant_manager = getattr(request.app.state, "tenant_manager", None)
+                if tenant_manager:
+                    tenant = await tenant_manager.get_tenant_by_slug(subdomain)
+                    if tenant:
+                        return str(tenant.tenant_id)
+            except Exception as e:
+                logger.debug(f"Failed to lookup tenant by slug '{subdomain}': {e}")
+                pass
     
     return None
 
