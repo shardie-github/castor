@@ -453,6 +453,12 @@ try:
 except ImportError:
     AUTOMATION_AVAILABLE = False
 
+try:
+    from src.api import monetization
+    MONETIZATION_AVAILABLE = True
+except ImportError:
+    MONETIZATION_AVAILABLE = False
+
 # Include API routers
 app.include_router(tenants.router, prefix="/api/v1/tenants", tags=["tenants"])
 app.include_router(attribution.router, prefix="/api/v1/attribution", tags=["attribution"])
@@ -488,6 +494,22 @@ if DASHBOARD_AVAILABLE and os.getenv("ENABLE_NEW_DASHBOARD_CARDS", "false").lowe
 # DELTA:20251113_064143 Include Automation router if available and feature flag enabled
 if AUTOMATION_AVAILABLE and os.getenv("ENABLE_AUTOMATION_JOBS", "false").lower() == "true":
     app.include_router(automation.router)
+
+# DELTA:20251113_064143 Include Monetization router if available and feature flag enabled
+if MONETIZATION_AVAILABLE and os.getenv("ENABLE_MONETIZATION", "false").lower() == "true":
+    app.include_router(monetization.router)
+    
+    # Add API usage tracking middleware if monetization is enabled
+    try:
+        from src.middleware.api_usage_middleware import APIUsageMiddleware
+        app.add_middleware(
+            APIUsageMiddleware,
+            postgres_conn=app.state.postgres_conn,
+            metrics_collector=app.state.metrics_collector,
+            event_logger=app.state.event_logger
+        )
+    except ImportError:
+        logger.warning("API usage middleware not available")
 
 # Legacy routers (if they exist)
 # from src.api import campaigns, analytics, reports, integrations

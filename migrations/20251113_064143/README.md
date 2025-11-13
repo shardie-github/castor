@@ -13,6 +13,7 @@ This migration pack adds the following **additive-only** changes:
 4. **Matches Table** - Advertiser-podcast matchmaking scores
 5. **Campaigns Extension** - Add `stage` and `stage_changed_at` columns for deal pipeline
 6. **Metrics Daily View** - Materialized view for daily aggregated metrics
+7. **Monetization Schema** - Agency/affiliate/AI tokens/white-label/API usage tables
 
 ## Preconditions
 
@@ -38,6 +39,8 @@ psql -U postgres -d podcast_analytics
 \i migrations/20251113_064143/01_detect_and_add.sql
 \i migrations/20251113_064143/02_policies.sql
 \i migrations/20251113_064143/03_metrics_daily_view.sql
+\i migrations/20251113_064143/04_monetization_schema.sql
+\i migrations/20251113_064143/05_monetization_policies.sql
 ```
 
 Or via Python:
