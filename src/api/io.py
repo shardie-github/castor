@@ -207,6 +207,116 @@ async def get_io_booking(
     )
 
 
+class UpdateIOStatusRequest(BaseModel):
+    """DELTA:20251113T114706Z Update IO status request"""
+    status: str  # scheduled, active, completed, cancelled, makegood
+
+
+@router.patch("/{io_id}/status", response_model=IOBookingResponse)
+async def update_io_status(
+    io_id: str,
+    request_data: UpdateIOStatusRequest,
+    request: Request = None,
+    tenant_id: str = Depends(get_current_tenant),
+    postgres_conn: PostgresConnection = Depends(get_postgres_conn),
+    event_logger: EventLogger = Depends(get_event_logger)
+):
+    """DELTA:20251113T114706Z Update IO booking status"""
+    if not check_feature_flag():
+        raise HTTPException(status_code=403, detail="IO bookings are disabled")
+    
+    # Validate status
+    valid_statuses = ['scheduled', 'active', 'completed', 'cancelled', 'makegood']
+    if request_data.status not in valid_statuses:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid status. Must be one of: {valid_statuses}"
+        )
+    
+    try:
+        # Get current status
+        current_query = """
+            SELECT status FROM io_bookings
+            WHERE io_id = $1::uuid AND tenant_id = $2::uuid;
+        """
+        current_row = await postgres_conn.fetchrow(current_query, io_id, tenant_id)
+        
+        if not current_row:
+            raise HTTPException(status_code=404, detail="IO booking not found")
+        
+        current_status = current_row['status']
+        
+        # Update status
+        update_query = """
+            UPDATE io_bookings
+            SET status = $1,
+                updated_at = NOW()
+            WHERE io_id = $2::uuid AND tenant_id = $3::uuid
+            RETURNING io_id, campaign_id, ad_unit_id, episode_id, flight_start, flight_end,
+                      booked_impressions, booked_cpm_cents, promo_code, vanity_url, status;
+        """
+        
+        row = await postgres_conn.fetchrow(
+            update_query,
+            request_data.status,
+            io_id,
+            tenant_id
+        )
+        
+        if not row:
+            raise HTTPException(status_code=500, detail="Failed to update IO status")
+        
+        # Emit event based on status change
+        if request_data.status == 'completed' and current_status != 'completed':
+            # DELTA:20251113T114706Z Emit io.delivered event when IO completes
+            await event_logger.log_event(
+                event_type='io.delivered',
+                user_id=None,
+                properties={
+                    'io_id': str(row['io_id']),
+                    'campaign_id': str(row['campaign_id']),
+                    'episode_id': str(row['episode_id']) if row['episode_id'] else None,
+                    'flight_start': row['flight_start'].isoformat(),
+                    'flight_end': row['flight_end'].isoformat(),
+                    'booked_impressions': row['booked_impressions'],
+                    'from_status': current_status,
+                    'to_status': request_data.status
+                }
+            )
+        else:
+            # Emit generic status change event
+            await event_logger.log_event(
+                event_type='io.status_changed',
+                user_id=None,
+                properties={
+                    'io_id': str(row['io_id']),
+                    'campaign_id': str(row['campaign_id']),
+                    'from_status': current_status,
+                    'to_status': request_data.status
+                }
+            )
+        
+        return IOBookingResponse(
+            io_id=str(row['io_id']),
+            campaign_id=str(row['campaign_id']),
+            ad_unit_id=str(row['ad_unit_id']) if row['ad_unit_id'] else None,
+            episode_id=str(row['episode_id']) if row['episode_id'] else None,
+            flight_start=row['flight_start'].isoformat(),
+            flight_end=row['flight_end'].isoformat(),
+            booked_impressions=row['booked_impressions'],
+            booked_cpm_cents=row['booked_cpm_cents'],
+            promo_code=row['promo_code'],
+            vanity_url=row['vanity_url'],
+            status=row['status']
+        )
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"IO status update failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to update IO status: {str(e)}")
+
+
 @router.get("/{io_id}/export/pdf")
 async def export_io_pdf(
     io_id: str,

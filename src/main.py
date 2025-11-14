@@ -9,6 +9,7 @@ from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
+from typing import Dict, Any
 import os
 
 from src.config import config
@@ -242,6 +243,69 @@ onboarding_wizard = OnboardingWizard(
     event_logger=event_logger
 )
 
+# DELTA:20251113T114706Z Initialize orchestration components
+from src.orchestration import (
+    WorkflowEngine,
+    IntelligentAutomationEngine,
+    SmartScheduler,
+    AutoOptimizer,
+    PredictiveAutomation
+)
+
+workflow_engine = WorkflowEngine(
+    postgres_conn=postgres_conn,
+    metrics_collector=metrics_collector,
+    event_logger=event_logger
+)
+
+intelligent_automation = IntelligentAutomationEngine(
+    ai_framework=ai_framework,
+    predictive_engine=PredictiveEngine(
+        ai_framework=ai_framework,
+        metrics_collector=metrics_collector,
+        event_logger=event_logger,
+        postgres_conn=postgres_conn
+    ),
+    workflow_engine=workflow_engine,
+    postgres_conn=postgres_conn,
+    metrics_collector=metrics_collector,
+    event_logger=event_logger
+)
+
+smart_scheduler = SmartScheduler(
+    postgres_conn=postgres_conn,
+    metrics_collector=metrics_collector,
+    event_logger=event_logger,
+    max_concurrent_jobs=10
+)
+
+auto_optimizer = AutoOptimizer(
+    ai_framework=ai_framework,
+    predictive_engine=PredictiveEngine(
+        ai_framework=ai_framework,
+        metrics_collector=metrics_collector,
+        event_logger=event_logger,
+        postgres_conn=postgres_conn
+    ),
+    postgres_conn=postgres_conn,
+    metrics_collector=metrics_collector,
+    event_logger=event_logger
+)
+
+predictive_automation = PredictiveAutomation(
+    predictive_engine=PredictiveEngine(
+        ai_framework=ai_framework,
+        metrics_collector=metrics_collector,
+        event_logger=event_logger,
+        postgres_conn=postgres_conn
+    ),
+    workflow_engine=workflow_engine,
+    intelligent_automation=intelligent_automation,
+    postgres_conn=postgres_conn,
+    metrics_collector=metrics_collector,
+    event_logger=event_logger
+)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -289,16 +353,150 @@ async def lifespan(app: FastAPI):
     app.state.task_scheduler = task_scheduler
     app.state.onboarding_wizard = onboarding_wizard
     
+    # DELTA:20251113T114706Z Store orchestration components
+    app.state.workflow_engine = workflow_engine
+    app.state.intelligent_automation = intelligent_automation
+    app.state.smart_scheduler = smart_scheduler
+    app.state.auto_optimizer = auto_optimizer
+    app.state.predictive_automation = predictive_automation
+    
+    # Start smart scheduler
+    await smart_scheduler.start()
+    
+    # Register default workflows
+    await _register_default_workflows(workflow_engine, postgres_conn, metrics_collector, event_logger)
+    
     yield
     
     # Shutdown
     logging.info("Shutting down application...")
+    
+    # DELTA:20251113T114706Z Stop orchestration components
+    await smart_scheduler.stop()
     
     # Close connections
     await postgres_conn.close()
     await timescale_conn.close()
     await redis_conn.close()
     await event_logger.cleanup()
+
+
+async def _register_default_workflows(
+    workflow_engine: WorkflowEngine,
+    postgres_conn: PostgresConnection,
+    metrics_collector: MetricsCollector,
+    event_logger: EventLogger
+):
+    """DELTA:20251113T114706Z Register default workflows"""
+    from src.orchestration.workflow_engine import WorkflowDefinition, WorkflowStep
+    
+    # Workflow: Auto-create IO when deal is won
+    async def check_deal_stage_handler(context: Dict[str, Any]) -> Dict[str, Any]:
+        """Check if deal stage is 'won'"""
+        return {'stage': context.get('to')} if context.get('to') == 'won' else {'skip': True}
+    
+    async def create_io_handler(context: Dict[str, Any]) -> Dict[str, Any]:
+        campaign_id = context.get('campaign_id')
+        tenant_id = context.get('tenant_id')
+        
+        # Get deal data
+        query = """
+            SELECT campaign_id, podcast_id, sponsor_id, campaign_value
+            FROM campaigns
+            WHERE campaign_id = $1::uuid AND tenant_id = $2::uuid;
+        """
+        deal = await postgres_conn.fetchrow(query, campaign_id, tenant_id)
+        
+        if not deal:
+            raise ValueError("Deal not found")
+        
+        # Create IO booking
+        io_query = """
+            INSERT INTO io_bookings (
+                tenant_id, campaign_id, flight_start, flight_end,
+                booked_impressions, booked_cpm_cents, status
+            )
+            VALUES (
+                $1::uuid, $2::uuid,
+                NOW(), NOW() + INTERVAL '30 days',
+                50000, 3000, 'scheduled'
+            )
+            RETURNING io_id;
+        """
+        io_id = await postgres_conn.fetchval(io_query, tenant_id, campaign_id)
+        
+        await event_logger.log_event(
+            event_type='io.auto_created',
+            user_id=None,
+            properties={'io_id': str(io_id), 'campaign_id': campaign_id}
+        )
+        
+        return {'io_id': str(io_id)}
+    
+    io_creation_workflow = WorkflowDefinition(
+        workflow_id='auto_create_io_on_deal_won',
+        name='Auto-Create IO on Deal Won',
+        description='Automatically create IO booking when deal reaches won stage',
+        trigger_event='deal.stage_changed',
+        steps=[
+            WorkflowStep(
+                step_id='check_deal_stage',
+                name='Check Deal Stage',
+                handler=check_deal_stage_handler,
+                condition=lambda ctx: ctx.get('to') == 'won'
+            ),
+            WorkflowStep(
+                step_id='create_io',
+                name='Create IO Booking',
+                handler=create_io_handler,
+                depends_on=['check_deal_stage']
+            )
+        ]
+    )
+    
+    workflow_engine.register_workflow(io_creation_workflow)
+    
+    # Workflow: Auto-recalculate matches on data change
+    async def recalc_matches_handler(context: Dict[str, Any]) -> Dict[str, Any]:
+        entity_type = context.get('entity_type')
+        entity_id = context.get('entity_id')
+        tenant_id = context.get('tenant_id')
+        
+        from src.agents.automation_jobs import AutomationJobs
+        automation = AutomationJobs(
+            postgres_conn=postgres_conn,
+            metrics_collector=metrics_collector,
+            event_logger=event_logger
+        )
+        
+        if entity_type == 'advertiser':
+            result = await automation.recalculate_matches(
+                advertiser_id=entity_id,
+                tenant_id=tenant_id
+            )
+        else:
+            result = await automation.recalculate_matches(
+                podcast_id=entity_id,
+                tenant_id=tenant_id
+            )
+        
+        return result
+    
+    match_recalc_workflow = WorkflowDefinition(
+        workflow_id='auto_recalculate_matches',
+        name='Auto-Recalculate Matches',
+        description='Automatically recalculate matches when advertiser/podcast data changes',
+        trigger_event='match.auto_recalculate',
+        steps=[
+            WorkflowStep(
+                step_id='recalculate',
+                name='Recalculate Matches',
+                handler=recalc_matches_handler
+            )
+        ]
+    )
+    
+    workflow_engine.register_workflow(match_recalc_workflow)
 
 
 # Create FastAPI app
@@ -459,6 +657,12 @@ try:
 except ImportError:
     MONETIZATION_AVAILABLE = False
 
+try:
+    from src.api import orchestration
+    ORCHESTRATION_AVAILABLE = True
+except ImportError:
+    ORCHESTRATION_AVAILABLE = False
+
 # Include API routers
 app.include_router(tenants.router, prefix="/api/v1/tenants", tags=["tenants"])
 app.include_router(attribution.router, prefix="/api/v1/attribution", tags=["attribution"])
@@ -498,6 +702,10 @@ if AUTOMATION_AVAILABLE and os.getenv("ENABLE_AUTOMATION_JOBS", "false").lower()
 # DELTA:20251113_064143 Include Monetization router if available and feature flag enabled
 if MONETIZATION_AVAILABLE and os.getenv("ENABLE_MONETIZATION", "false").lower() == "true":
     app.include_router(monetization.router)
+
+# DELTA:20251113T114706Z Include Orchestration router if available and feature flag enabled
+if ORCHESTRATION_AVAILABLE and os.getenv("ENABLE_ORCHESTRATION", "false").lower() == "true":
+    app.include_router(orchestration.router)
     
     # Add API usage tracking middleware if monetization is enabled
     try:
