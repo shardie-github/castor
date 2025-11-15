@@ -65,18 +65,20 @@ export function Header() {
 
           {/* User Menu */}
           <div className="hidden md:flex md:items-center md:space-x-4">
-            <button
-              className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-md transition-colors"
+            <Link
+              href="/settings"
+              className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
               aria-label="Settings"
             >
               <Cog6ToothIcon className="w-5 h-5" />
-            </button>
-            <button
-              className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-md transition-colors"
+            </Link>
+            <Link
+              href="/settings?tab=profile"
+              className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
               aria-label="Profile"
             >
               <UserCircleIcon className="w-5 h-5" />
-            </button>
+            </Link>
           </div>
 
           {/* Mobile menu button */}
@@ -118,15 +120,26 @@ export function Header() {
                 )
               })}
               <div className="border-t border-gray-200 pt-4 mt-4">
-                <button className="flex items-center space-x-3 px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-50 w-full">
+                <Link
+                  href="/settings"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center space-x-3 px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-50 w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
                   <Cog6ToothIcon className="w-6 h-6" />
                   <span>Settings</span>
-                </button>
-                <button className="flex items-center space-x-3 px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-50 w-full">
+                </Link>
+                <Link
+                  href="/settings?tab=profile"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center space-x-3 px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-50 w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
                   <UserCircleIcon className="w-6 h-6" />
                   <span>Profile</span>
-                </button>
-                <button className="flex items-center space-x-3 px-3 py-2 rounded-md text-base font-medium text-red-600 hover:bg-red-50 w-full">
+                </Link>
+                <button
+                  className="flex items-center space-x-3 px-3 py-2 rounded-md text-base font-medium text-red-600 hover:bg-red-50 w-full focus:outline-none focus:ring-2 focus:ring-red-500"
+                  aria-label="Sign out"
+                >
                   <ArrowRightOnRectangleIcon className="w-6 h-6" />
                   <span>Sign Out</span>
                 </button>
