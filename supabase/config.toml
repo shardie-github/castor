@@ -1,0 +1,21 @@
+# Supabase Configuration
+# This file is managed by Aurora Prime
+# Actual values come from GitHub Secrets
+
+[project]
+id = "your-project-id"
+
+[auth]
+enabled = true
+site_url = "https://your-project.supabase.co"
+
+[api]
+enabled = true
+port = 54321
+
+[db]
+port = 54322
+
+[studio]
+enabled = true
+port = 54323
