@@ -164,10 +164,32 @@ jobs:
         run: |
           pytest tests/e2e/ -v
 
+  migration-validation:
+    name: Migration Validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: |
+          pip install asyncpg
+      - name: Validate migrations
+        run: |
+          python scripts/validate_migrations.py --migrations-dir migrations
+      - name: Check schema health (if database available)
+        if: env.DATABASE_URL != ''
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          python scripts/check_schema_health.py --database-url "$DATABASE_URL" || true
+
   build:
     name: Build
     runs-on: ubuntu-latest
-    needs: [lint, unit-tests, integration-tests, frontend-lint, frontend-tests]
+    needs: [lint, unit-tests, integration-tests, frontend-lint, frontend-tests, migration-validation]
     steps:
       - uses: actions/checkout@v3
       - name: Set up Python

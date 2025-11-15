@@ -499,12 +499,27 @@ async def _register_default_workflows(
     workflow_engine.register_workflow(match_recalc_workflow)
 
 
-# Create FastAPI app
+# Create FastAPI app with OpenAPI documentation
 app = FastAPI(
     title="Podcast Analytics & Sponsorship Platform",
     description="Comprehensive analytics and sponsorship management for podcasts",
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
+    docs_url="/api/docs",
+    redoc_url="/api/redoc",
+    openapi_url="/api/openapi.json",
+    openapi_tags=[
+        {"name": "tenants", "description": "Multi-tenant management"},
+        {"name": "attribution", "description": "Attribution tracking and ROI calculations"},
+        {"name": "ai", "description": "AI-powered features and content analysis"},
+        {"name": "cost", "description": "Cost tracking and optimization"},
+        {"name": "security", "description": "Authentication, authorization, and security"},
+        {"name": "backup", "description": "Backup and restore operations"},
+        {"name": "optimization", "description": "A/B testing, churn prediction, and optimization"},
+        {"name": "risks", "description": "Risk management and compliance"},
+        {"name": "partners", "description": "Partner programs and marketplace"},
+        {"name": "business", "description": "Business analytics and insights"},
+    ]
 )
 
 # Security middleware (replaces basic CORS)
