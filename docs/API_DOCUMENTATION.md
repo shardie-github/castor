@@ -1,339 +1,457 @@
 # API Documentation
 
-Complete API reference with examples, authentication, and best practices.
-
-## Table of Contents
-
-1. [Authentication](#authentication)
-2. [Base URL](#base-url)
-3. [Rate Limiting](#rate-limiting)
-4. [Error Handling](#error-handling)
-5. [Endpoints](#endpoints)
-6. [Examples](#examples)
-
-## Authentication
-
-The API uses OAuth 2.0 / OIDC for authentication. Include the access token in the Authorization header:
-
-```http
-Authorization: Bearer YOUR_ACCESS_TOKEN
-```
-
-### Getting an Access Token
-
-1. **OAuth 2.0 Flow**:
-   ```
-   POST /api/v1/security/oauth/token
-   Content-Type: application/x-www-form-urlencoded
-   
-   grant_type=authorization_code&code=CODE&redirect_uri=REDIRECT_URI
-   ```
-
-2. **API Key Authentication** (for programmatic access):
-   ```http
-   X-API-Key: YOUR_API_KEY
-   ```
-
-### Multi-Factor Authentication
-
-For enhanced security, MFA can be enabled:
-
-```http
-POST /api/v1/security/mfa/enable
-Authorization: Bearer YOUR_ACCESS_TOKEN
-```
+Complete API reference for the Podcast Analytics & Sponsorship Platform.
 
 ## Base URL
 
-- **Production**: `https://api.example.com`
-- **Staging**: `https://api-staging.example.com`
 - **Development**: `http://localhost:8000`
+- **Production**: `https://api.castor.app`
 
-## Rate Limiting
+## Authentication
 
-Rate limits are applied per API key or user:
+Most endpoints require authentication. Include the JWT token in the Authorization header:
 
-- **Per Minute**: 60 requests
-- **Per Hour**: 1,000 requests
-- **Per Day**: 10,000 requests
-
-Rate limit headers are included in responses:
-
-```http
-X-RateLimit-Limit: 1000
-X-RateLimit-Remaining: 999
-X-RateLimit-Reset: 1640995200
+```
+Authorization: Bearer <your-jwt-token>
 ```
 
-## Error Handling
+## API Endpoints
 
-All errors follow a consistent format:
+### Health & Status
 
-```json
-{
-  "error": true,
-  "message": "User-friendly error message",
-  "code": "ERROR_CODE",
-  "details": [
-    {
-      "field": "email",
-      "message": "Invalid email format",
-      "code": "INVALID_EMAIL"
-    }
-  ],
-  "timestamp": "2024-01-01T00:00:00Z",
-  "path": "/api/v1/endpoint"
-}
-```
+#### GET `/health`
 
-### Common Error Codes
-
-- `VALIDATION_ERROR` (400): Invalid input
-- `AUTHENTICATION_REQUIRED` (401): Missing or invalid token
-- `AUTHORIZATION_FAILED` (403): Insufficient permissions
-- `NOT_FOUND` (404): Resource not found
-- `RATE_LIMIT_EXCEEDED` (429): Too many requests
-- `INTERNAL_ERROR` (500): Server error
-
-## Endpoints
-
-### Health Check
-
-```http
-GET /health
-```
+Health check endpoint.
 
 **Response:**
 ```json
 {
   "status": "healthy",
-  "timestamp": "2024-01-01T00:00:00Z",
+  "timestamp": "2024-01-15T10:00:00Z",
   "checks": [
     {
       "name": "database",
       "status": "healthy",
+      "message": "Connection successful",
       "latency_ms": 5
     }
   ]
 }
 ```
 
-### Risk Management
+#### GET `/metrics`
 
-#### Create Risk
+Prometheus metrics endpoint.
 
-```http
-POST /api/v1/risks
-Authorization: Bearer YOUR_ACCESS_TOKEN
-Content-Type: application/json
+**Response:** Prometheus metrics format
 
+---
+
+### Multi-Tenant Management
+
+#### GET `/api/v1/tenants`
+
+List all tenants (admin only).
+
+**Query Parameters:**
+- `page` (int): Page number (default: 1)
+- `limit` (int): Items per page (default: 20)
+
+**Response:**
+```json
 {
-  "category": "security",
-  "title": "Data Breach Risk",
-  "description": "Risk of unauthorized data access",
-  "impact": 5,
-  "probability": 3,
-  "owner": "security-team",
-  "mitigation_strategies": [
-    "Implement encryption",
-    "Add access controls"
+  "tenants": [
+    {
+      "tenant_id": "uuid",
+      "name": "Example Tenant",
+      "created_at": "2024-01-15T10:00:00Z"
+    }
+  ],
+  "total": 100,
+  "page": 1,
+  "limit": 20
+}
+```
+
+#### POST `/api/v1/tenants`
+
+Create a new tenant.
+
+**Request Body:**
+```json
+{
+  "name": "New Tenant",
+  "metadata": {}
+}
+```
+
+**Response:**
+```json
+{
+  "tenant_id": "uuid",
+  "name": "New Tenant",
+  "created_at": "2024-01-15T10:00:00Z"
+}
+```
+
+---
+
+### Attribution Tracking
+
+#### GET `/api/v1/attribution/events`
+
+Get attribution events.
+
+**Query Parameters:**
+- `campaign_id` (uuid): Filter by campaign
+- `start_date` (datetime): Start date filter
+- `end_date` (datetime): End date filter
+- `page` (int): Page number
+- `limit` (int): Items per page
+
+**Response:**
+```json
+{
+  "events": [
+    {
+      "event_id": "uuid",
+      "campaign_id": "uuid",
+      "timestamp": "2024-01-15T10:00:00Z",
+      "attribution_method": "promo_code",
+      "conversion_value": 99.99
+    }
+  ],
+  "total": 1000,
+  "page": 1,
+  "limit": 20
+}
+```
+
+#### POST `/api/v1/attribution/events`
+
+Create an attribution event.
+
+**Request Body:**
+```json
+{
+  "campaign_id": "uuid",
+  "attribution_method": "promo_code",
+  "attribution_data": {
+    "promo_code": "PODCAST2024"
+  },
+  "conversion_data": {
+    "conversion_type": "purchase",
+    "conversion_value": 99.99
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "event_id": "uuid",
+  "status": "created"
+}
+```
+
+#### GET `/api/v1/attribution/roi/{campaign_id}`
+
+Calculate ROI for a campaign.
+
+**Response:**
+```json
+{
+  "campaign_id": "uuid",
+  "total_investment": 5000.00,
+  "total_revenue": 15000.00,
+  "roi": 200.00,
+  "roi_percentage": 200.0,
+  "attribution_count": 150,
+  "average_order_value": 100.00
+}
+```
+
+---
+
+### AI Features
+
+#### POST `/api/v1/ai/analyze-content`
+
+Analyze podcast content.
+
+**Request Body:**
+```json
+{
+  "episode_id": "uuid",
+  "analysis_type": "sentiment|topics|keywords"
+}
+```
+
+**Response:**
+```json
+{
+  "episode_id": "uuid",
+  "analysis": {
+    "sentiment": "positive",
+    "topics": ["technology", "business"],
+    "keywords": ["AI", "machine learning"]
+  }
+}
+```
+
+#### POST `/api/v1/ai/generate-recommendations`
+
+Generate content recommendations.
+
+**Request Body:**
+```json
+{
+  "podcast_id": "uuid",
+  "recommendation_type": "sponsors|topics|guests"
+}
+```
+
+**Response:**
+```json
+{
+  "recommendations": [
+    {
+      "type": "sponsor",
+      "name": "Example Sponsor",
+      "match_score": 0.95,
+      "reason": "High audience overlap"
+    }
   ]
 }
 ```
 
-**Response:**
+---
+
+### Security
+
+#### POST `/api/v1/security/auth/login`
+
+Authenticate user.
+
+**Request Body:**
 ```json
 {
-  "risk_id": "uuid",
-  "category": "security",
-  "title": "Data Breach Risk",
-  "risk_score": 15,
-  "severity": "high",
-  "status": "active",
-  "created_at": "2024-01-01T00:00:00Z"
-}
-```
-
-#### List Risks
-
-```http
-GET /api/v1/risks?category=security&severity=high&limit=10
-Authorization: Bearer YOUR_ACCESS_TOKEN
-```
-
-### Partnership Tools
-
-#### Create Referral
-
-```http
-POST /api/v1/partners/referrals
-Authorization: Bearer YOUR_ACCESS_TOKEN
-Content-Type: application/json
-
-{
-  "referrer_id": "partner-123",
-  "first_year_rate": 0.20,
-  "recurring_rate": 0.10
+  "email": "user@example.com",
+  "password": "password"
 }
 ```
 
 **Response:**
 ```json
 {
-  "referral_id": "uuid",
-  "referral_code": "REF12345",
-  "referral_link": "https://app.example.com/signup?ref=REF12345",
-  "status": "pending"
-}
-```
-
-#### Track Referral Conversion
-
-```http
-POST /api/v1/partners/referrals/convert
-Authorization: Bearer YOUR_ACCESS_TOKEN
-Content-Type: application/json
-
-{
-  "referral_code": "REF12345",
-  "customer_id": "customer-456",
-  "customer_revenue": 1000.00
-}
-```
-
-### Business Analytics
-
-#### Get Business Dashboard
-
-```http
-GET /api/v1/business/dashboard
-Authorization: Bearer YOUR_ACCESS_TOKEN
-```
-
-**Response:**
-```json
-{
-  "period": {
-    "start": "2024-01-01T00:00:00Z",
-    "end": "2024-01-31T23:59:59Z"
-  },
-  "revenue": {
-    "total": 50000.00,
-    "recurring": 45000.00,
-    "one_time": 5000.00,
-    "growth_rate": 15.5,
-    "avg_per_user": 100.00,
-    "lifetime_value": 1200.00
-  },
-  "customers": {
-    "total": 500,
-    "active": 450,
-    "new": 50,
-    "churned": 10,
-    "churn_rate": 2.0,
-    "growth_rate": 10.0
+  "access_token": "jwt-token",
+  "token_type": "bearer",
+  "expires_in": 3600,
+  "user": {
+    "user_id": "uuid",
+    "email": "user@example.com",
+    "role": "user"
   }
 }
 ```
 
-## Examples
+#### POST `/api/v1/security/auth/refresh`
+
+Refresh access token.
+
+**Request Body:**
+```json
+{
+  "refresh_token": "refresh-token"
+}
+```
+
+**Response:**
+```json
+{
+  "access_token": "new-jwt-token",
+  "token_type": "bearer",
+  "expires_in": 3600
+}
+```
+
+---
+
+### Cost Tracking
+
+#### GET `/api/v1/cost/tracking`
+
+Get cost tracking data.
+
+**Query Parameters:**
+- `start_date` (datetime): Start date
+- `end_date` (datetime): End date
+- `category` (string): Cost category
+
+**Response:**
+```json
+{
+  "costs": [
+    {
+      "date": "2024-01-15",
+      "category": "infrastructure",
+      "amount": 1000.00,
+      "currency": "USD"
+    }
+  ],
+  "total": 5000.00,
+  "period": {
+    "start": "2024-01-01",
+    "end": "2024-01-31"
+  }
+}
+```
+
+---
+
+### Optimization
+
+#### GET `/api/v1/optimization/churn-prediction`
+
+Get churn prediction scores.
+
+**Response:**
+```json
+{
+  "predictions": [
+    {
+      "user_id": "uuid",
+      "churn_probability": 0.75,
+      "risk_level": "high",
+      "factors": ["low_engagement", "no_recent_activity"]
+    }
+  ]
+}
+```
+
+#### POST `/api/v1/optimization/ab-test`
+
+Create an A/B test.
+
+**Request Body:**
+```json
+{
+  "name": "Homepage CTA Test",
+  "variants": [
+    {"name": "control", "traffic_percentage": 50},
+    {"name": "variant_a", "traffic_percentage": 50}
+  ],
+  "metrics": ["conversion_rate", "click_through_rate"]
+}
+```
+
+**Response:**
+```json
+{
+  "test_id": "uuid",
+  "status": "active",
+  "created_at": "2024-01-15T10:00:00Z"
+}
+```
+
+---
+
+## Error Responses
+
+All endpoints may return error responses in the following format:
+
+```json
+{
+  "error": {
+    "code": "ERROR_CODE",
+    "message": "Human-readable error message",
+    "details": {}
+  }
+}
+```
+
+### Common Error Codes
+
+- `400 Bad Request`: Invalid request parameters
+- `401 Unauthorized`: Missing or invalid authentication
+- `403 Forbidden`: Insufficient permissions
+- `404 Not Found`: Resource not found
+- `429 Too Many Requests`: Rate limit exceeded
+- `500 Internal Server Error`: Server error
+- `503 Service Unavailable`: Service temporarily unavailable
+
+---
+
+## Rate Limiting
+
+API requests are rate-limited:
+
+- **Per minute**: 60 requests
+- **Per hour**: 1000 requests
+- **Per day**: 10000 requests
+
+Rate limit headers are included in responses:
+
+```
+X-RateLimit-Limit: 60
+X-RateLimit-Remaining: 45
+X-RateLimit-Reset: 1642248000
+```
+
+---
+
+## Pagination
+
+List endpoints support pagination:
+
+**Query Parameters:**
+- `page` (int): Page number (default: 1)
+- `limit` (int): Items per page (default: 20, max: 100)
+
+**Response:**
+```json
+{
+  "items": [...],
+  "total": 1000,
+  "page": 1,
+  "limit": 20,
+  "pages": 50
+}
+```
+
+---
+
+## OpenAPI Documentation
+
+Interactive API documentation is available at:
+
+- **Swagger UI**: `/api/docs`
+- **ReDoc**: `/api/redoc`
+- **OpenAPI JSON**: `/api/openapi.json`
+
+---
+
+## SDKs & Client Libraries
 
 ### Python
 
 ```python
-import requests
+from castor_sdk import CastorClient
 
-# Set up authentication
-headers = {
-    "Authorization": "Bearer YOUR_ACCESS_TOKEN",
-    "Content-Type": "application/json"
-}
-
-# Create a risk
-response = requests.post(
-    "https://api.example.com/api/v1/risks",
-    headers=headers,
-    json={
-        "category": "security",
-        "title": "Test Risk",
-        "description": "Test description",
-        "impact": 5,
-        "probability": 3,
-        "owner": "team-lead"
-    }
-)
-
-risk = response.json()
-print(f"Created risk: {risk['risk_id']}")
+client = CastorClient(api_key="your-api-key")
+events = client.attribution.get_events(campaign_id="uuid")
 ```
 
-### JavaScript/Node.js
+### JavaScript/TypeScript
 
-```javascript
-const axios = require('axios');
+```typescript
+import { CastorClient } from '@castor/sdk'
 
-const api = axios.create({
-  baseURL: 'https://api.example.com',
-  headers: {
-    'Authorization': `Bearer ${process.env.ACCESS_TOKEN}`,
-    'Content-Type': 'application/json'
-  }
-});
-
-// Create a referral
-async function createReferral(referrerId) {
-  const response = await api.post('/api/v1/partners/referrals', {
-    referrer_id: referrerId,
-    first_year_rate: 0.20,
-    recurring_rate: 0.10
-  });
-  
-  return response.data;
-}
+const client = new CastorClient({ apiKey: 'your-api-key' })
+const events = await client.attribution.getEvents({ campaignId: 'uuid' })
 ```
 
-### cURL
+---
 
-```bash
-# Create a risk
-curl -X POST https://api.example.com/api/v1/risks \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "category": "security",
-    "title": "Test Risk",
-    "description": "Test description",
-    "impact": 5,
-    "probability": 3,
-    "owner": "team-lead"
-  }'
-
-# Get business dashboard
-curl -X GET https://api.example.com/api/v1/business/dashboard \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
-```
-
-## Best Practices
-
-1. **Always use HTTPS** in production
-2. **Store tokens securely** - never commit to version control
-3. **Handle rate limits** - implement exponential backoff
-4. **Validate input** - check data before sending requests
-5. **Use pagination** - for list endpoints, use limit and offset
-6. **Monitor errors** - track and handle error responses
-7. **Cache responses** - when appropriate, cache GET requests
-
-## SDKs
-
-Official SDKs are available:
-
-- **Python**: `pip install podcast-analytics-sdk`
-- **JavaScript**: `npm install @podcast-analytics/sdk`
-- **Ruby**: `gem install podcast_analytics`
-
-## Support
-
-For API support:
-- **Email**: api-support@example.com
-- **Documentation**: https://docs.example.com
-- **Status Page**: https://status.example.com
+*Last Updated: 2024-01-15*
+*API Version: 1.0.0*

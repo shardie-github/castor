@@ -1,28 +1,30 @@
-// Castor Service Worker v1
-// PWA offline support and caching
+/**
+ * Service Worker for PWA
+ * 
+ * Provides offline functionality, caching, and background sync.
+ */
 
-const CACHE_NAME = 'castor-v1';
-const STATIC_CACHE = 'castor-static-v1';
-const API_CACHE = 'castor-api-v1';
+const CACHE_NAME = 'castor-v1'
+const RUNTIME_CACHE = 'castor-runtime-v1'
 
 // Assets to cache on install
 const STATIC_ASSETS = [
   '/',
-  '/dashboard',
-  '/marketplace',
   '/offline',
   '/manifest.json',
-];
+  '/icon-192.png',
+  '/icon-512.png',
+]
 
 // Install event - cache static assets
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(STATIC_CACHE).then((cache) => {
-      return cache.addAll(STATIC_ASSETS);
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.addAll(STATIC_ASSETS)
     })
-  );
-  self.skipWaiting();
-});
+  )
+  self.skipWaiting()
+})
 
 // Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
@@ -30,27 +32,27 @@ self.addEventListener('activate', (event) => {
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames
-          .filter((name) => name.startsWith('castor-') && name !== STATIC_CACHE && name !== API_CACHE)
+          .filter((name) => name !== CACHE_NAME && name !== RUNTIME_CACHE)
           .map((name) => caches.delete(name))
-      );
+      )
     })
-  );
-  return self.clients.claim();
-});
+  )
+  self.clients.claim()
+})
 
 // Fetch event - serve from cache, fallback to network
 self.addEventListener('fetch', (event) => {
-  const { request } = event;
-  const url = new URL(request.url);
+  const { request } = event
+  const url = new URL(request.url)
 
   // Skip non-GET requests
   if (request.method !== 'GET') {
-    return;
+    return
   }
 
   // Skip cross-origin requests
   if (url.origin !== location.origin) {
-    return;
+    return
   }
 
   // API requests - network first, cache fallback
@@ -59,97 +61,97 @@ self.addEventListener('fetch', (event) => {
       fetch(request)
         .then((response) => {
           // Cache successful responses
-          if (response.status === 200) {
-            const clone = response.clone();
-            caches.open(API_CACHE).then((cache) => {
-              cache.put(request, clone);
-            });
+          if (response.ok) {
+            const responseClone = response.clone()
+            caches.open(RUNTIME_CACHE).then((cache) => {
+              cache.put(request, responseClone)
+            })
           }
-          return response;
+          return response
         })
         .catch(() => {
-          // Return cached version if network fails
-          return caches.match(request).then((cached) => {
-            if (cached) {
-              return cached;
+          // Return cached response if network fails
+          return caches.match(request).then((cachedResponse) => {
+            if (cachedResponse) {
+              return cachedResponse
             }
-            // Return offline response for API calls
+            // Return offline fallback for API requests
             return new Response(
-              JSON.stringify({ error: 'Offline', message: 'No internet connection' }),
+              JSON.stringify({ error: 'Offline', message: 'You are currently offline' }),
               {
                 status: 503,
                 headers: { 'Content-Type': 'application/json' },
               }
-            );
-          });
+            )
+          })
         })
-    );
-    return;
+    )
+    return
   }
 
   // Static assets - cache first, network fallback
   event.respondWith(
-    caches.match(request).then((cached) => {
-      if (cached) {
-        return cached;
+    caches.match(request).then((cachedResponse) => {
+      if (cachedResponse) {
+        return cachedResponse
       }
 
       return fetch(request)
         .then((response) => {
           // Don't cache non-successful responses
-          if (!response || response.status !== 200 || response.type !== 'basic') {
-            return response;
+          if (!response.ok) {
+            return response
           }
 
-          const clone = response.clone();
-          caches.open(STATIC_CACHE).then((cache) => {
-            cache.put(request, clone);
-          });
+          const responseClone = response.clone()
+          caches.open(RUNTIME_CACHE).then((cache) => {
+            cache.put(request, responseClone)
+          })
 
-          return response;
+          return response
         })
         .catch(() => {
-          // Return offline page for navigation requests
+          // If offline and no cache, return offline page
           if (request.mode === 'navigate') {
-            return caches.match('/offline');
+            return caches.match('/offline')
           }
-          return new Response('Offline', { status: 503 });
-        });
+          return new Response('Offline', { status: 503 })
+        })
     })
-  );
-});
+  )
+})
 
 // Background sync for offline actions
 self.addEventListener('sync', (event) => {
   if (event.tag === 'sync-analytics') {
-    event.waitUntil(syncAnalytics());
+    event.waitUntil(syncAnalytics())
   }
-});
+})
 
 async function syncAnalytics() {
-  // Sync analytics data when back online
-  // Implementation depends on your analytics tracking
-  console.log('Syncing analytics data...');
+  // Implement background sync for analytics events
+  // This would sync queued analytics events when connection is restored
+  console.log('Syncing analytics...')
 }
 
-// Push notifications (for future use)
+// Push notifications (if needed in future)
 self.addEventListener('push', (event) => {
-  const data = event.data ? event.data.json() : {};
-  const title = data.title || 'Castor';
+  const data = event.data?.json() || {}
+  const title = data.title || 'Castor'
   const options = {
     body: data.body || 'You have a new notification',
     icon: '/icon-192.png',
     badge: '/icon-192.png',
     data: data.url || '/',
-  };
+  }
 
-  event.waitUntil(self.registration.showNotification(title, options));
-});
+  event.waitUntil(self.registration.showNotification(title, options))
+})
 
 // Notification click handler
 self.addEventListener('notificationclick', (event) => {
-  event.notification.close();
+  event.notification.close()
   event.waitUntil(
     clients.openWindow(event.notification.data || '/')
-  );
-});
+  )
+})
