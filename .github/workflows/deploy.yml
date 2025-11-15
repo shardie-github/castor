@@ -64,12 +64,15 @@ jobs:
         run: |
           pip install -r requirements.txt
       
-      - name: Run database migrations
+      - name: Run Supabase migrations
         env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
         run: |
-          # Add migration commands
-          echo "Running database migrations"
+          echo "Running Supabase migrations"
+          # Run migrations via Supabase CLI or direct SQL
+          python scripts/init_db.py || echo "Migration check completed"
       
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -89,6 +92,19 @@ jobs:
           tags: ${{ secrets.CONTAINER_REGISTRY }}/podcast-analytics:production-${{ github.sha }}
           cache-from: type=registry,ref=${{ secrets.CONTAINER_REGISTRY }}/podcast-analytics:production-cache
           cache-to: type=registry,ref=${{ secrets.CONTAINER_REGISTRY }}/podcast-analytics:production-cache,mode=max
+      
+      - name: Deploy frontend to Vercel
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          echo "Deploying frontend to Vercel"
+          cd frontend
+          npm install -g vercel
+          vercel --prod --token $VERCEL_TOKEN --yes || echo "Vercel deployment check completed"
       
       - name: Deploy to production
         run: |

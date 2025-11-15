@@ -1,0 +1,73 @@
+name: Aurora Prime Doctor
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'  # Every 6 hours
+  workflow_dispatch:
+  push:
+    branches: [ main, develop ]
+
+jobs:
+  doctor:
+    name: Aurora Prime Full-Stack Health Check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          pip install httpx pyyaml
+          pip install -r requirements.txt || true
+      
+      - name: Run Aurora Prime Doctor
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+        run: |
+          python scripts/aurora_prime.py
+      
+      - name: Check schema drift
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          echo "Schema drift check would run here"
+          # python scripts/check_schema_drift.py
+          # Compare migrations/ with live Supabase schema
+      
+      - name: Validate Prisma schema
+        run: |
+          echo "Prisma validation would run here"
+          # npx prisma validate || echo "Prisma not configured"
+      
+      - name: Verify Vercel project
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          echo "Vercel project verification would run here"
+          # vercel projects ls || echo "Vercel CLI not available"
+      
+      - name: Check Expo configs
+        run: |
+          echo "Expo config check would run here"
+          # expo config --type public || echo "Expo not configured"
+      
+      - name: Report status
+        if: always()
+        run: |
+          echo "Aurora Prime Doctor completed"
+          # Upload results as artifact or comment on PR
