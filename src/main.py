@@ -5,6 +5,7 @@ FastAPI application with all routes and middleware.
 """
 
 import logging
+import sys
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -13,9 +14,12 @@ from typing import Dict, Any
 import os
 
 from src.config import config
+from src.config.validation import load_and_validate_env
 from src.database import PostgresConnection, TimescaleConnection, RedisConnection
 from src.telemetry.metrics import MetricsCollector
 from src.telemetry.events import EventLogger
+from src.telemetry.structured_logging import StructuredLogger, LogLevel
+from src.telemetry.tracing import setup_tracing
 from src.monitoring.health import HealthCheckService
 
 # Multi-tenant and advanced features
@@ -37,7 +41,8 @@ from src.self_service.onboarding_wizard import OnboardingWizard
 # Initialize global services
 metrics_collector = MetricsCollector()
 event_logger = EventLogger()
-health_service = HealthCheckService(metrics_collector)
+# Health service will be initialized after database connections are ready
+health_service = None
 
 # Database connections
 postgres_conn = PostgresConnection(
@@ -251,6 +256,7 @@ from src.orchestration import (
     AutoOptimizer,
     PredictiveAutomation
 )
+from src.ai import PredictiveEngine
 
 workflow_engine = WorkflowEngine(
     postgres_conn=postgres_conn,
@@ -310,13 +316,40 @@ predictive_automation = PredictiveAutomation(
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager"""
+    # Setup structured logging
+    environment = os.getenv("ENVIRONMENT", "development")
+    log_level_str = os.getenv("LOG_LEVEL", "INFO")
+    log_level = LogLevel[log_level_str.upper()] if hasattr(LogLevel, log_level_str.upper()) else LogLevel.INFO
+    logger = StructuredLogger(__name__, log_level)
+    
+    # Setup OpenTelemetry tracing
+    service_name = os.getenv("SERVICE_NAME", "podcast-analytics-api")
+    otlp_endpoint = os.getenv("OTLP_ENDPOINT")
+    setup_tracing(service_name=service_name, otlp_endpoint=otlp_endpoint)
+    
     # Startup
-    logging.info("Starting application...")
+    logger.info("Starting application...")
+    
+    # Validate environment variables
+    try:
+        validated_env = load_and_validate_env()
+        logger.info("Environment validation passed")
+    except ValueError as e:
+        logger.error("Environment validation failed", extra={"error": str(e)})
+        if environment == "production":
+            logger.critical("Production environment validation failed. Exiting.")
+            sys.exit(1)
+        else:
+            logger.warning("Continuing with default values in development mode")
     
     # Initialize database connections
     await postgres_conn.initialize()
     await timescale_conn.initialize()
     await redis_conn.initialize()
+    
+    # Initialize health check service with database connection
+    global health_service
+    health_service = HealthCheckService(metrics_collector, postgres_conn=postgres_conn)
     
     # Initialize event logger
     await event_logger.initialize()
@@ -369,7 +402,7 @@ async def lifespan(app: FastAPI):
     yield
     
     # Shutdown
-    logging.info("Shutting down application...")
+    logger.info("Shutting down application...")
     
     # DELTA:20251113T114706Z Stop orchestration components
     await smart_scheduler.stop()
