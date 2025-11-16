@@ -44,6 +44,13 @@ event_logger = EventLogger()
 # Health service will be initialized after database connections are ready
 health_service = None
 
+# Initialize Stripe payment processor
+from src.payments.stripe import StripePaymentProcessor
+stripe_processor = StripePaymentProcessor(
+    metrics_collector=metrics_collector,
+    event_logger=event_logger
+)
+
 # Database connections
 postgres_conn = PostgresConnection(
     host=config.database.postgres_host,
@@ -358,6 +365,7 @@ async def lifespan(app: FastAPI):
     app.state.metrics_collector = metrics_collector
     app.state.event_logger = event_logger
     app.state.postgres_conn = postgres_conn
+    app.state.stripe_processor = stripe_processor
     app.state.timescale_conn = timescale_conn
     app.state.redis_conn = redis_conn
     app.state.tenant_manager = tenant_manager
@@ -660,7 +668,7 @@ async def metrics():
 
 
 # Import routers
-from src.api import tenants, attribution, ai, cost, security, backup, optimization, risk, partners, business
+from src.api import tenants, attribution, ai, cost, security, backup, optimization, risk, partners, business, auth, billing, campaigns
 
 # DELTA:20251113_064143 Import ETL and Match routers
 try:
@@ -712,6 +720,9 @@ except ImportError:
     ORCHESTRATION_AVAILABLE = False
 
 # Include API routers
+app.include_router(auth.router, prefix="/api/v1/auth", tags=["authentication"])
+app.include_router(billing.router, prefix="/api/v1/billing", tags=["billing"])
+app.include_router(campaigns.router, prefix="/api/v1", tags=["campaigns"])
 app.include_router(tenants.router, prefix="/api/v1/tenants", tags=["tenants"])
 app.include_router(attribution.router, prefix="/api/v1/attribution", tags=["attribution"])
 app.include_router(ai.router, prefix="/api/v1/ai", tags=["ai"])
@@ -765,7 +776,8 @@ if ORCHESTRATION_AVAILABLE and os.getenv("ENABLE_ORCHESTRATION", "false").lower(
             event_logger=app.state.event_logger
         )
     except ImportError:
-        logger.warning("API usage middleware not available")
+        import logging
+        logging.warning("API usage middleware not available")
 
 # Legacy routers (if they exist)
 # from src.api import campaigns, analytics, reports, integrations
