@@ -10,6 +10,9 @@ from src.api import tenants, attribution, ai, cost, security, backup, optimizati
 # Authentication, billing, and campaigns
 from src.api import auth, billing, campaigns
 
+# Core CRUD APIs
+from src.api import podcasts, episodes, sponsors, reports, analytics, users, email
+
 # Feature-flagged routes (imported conditionally in main.py)
 # etl, match, io, deals, dashboard, automation, monetization, orchestration
 
@@ -27,4 +30,11 @@ __all__ = [
     "auth",
     "billing",
     "campaigns",
+    "podcasts",
+    "episodes",
+    "sponsors",
+    "reports",
+    "analytics",
+    "users",
+    "email",
 ]
