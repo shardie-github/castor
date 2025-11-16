@@ -5,6 +5,7 @@ FastAPI application with all routes and middleware.
 """
 
 import logging
+import sys
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -13,9 +14,12 @@ from typing import Dict, Any
 import os
 
 from src.config import config
+from src.config.validation import load_and_validate_env
 from src.database import PostgresConnection, TimescaleConnection, RedisConnection
 from src.telemetry.metrics import MetricsCollector
 from src.telemetry.events import EventLogger
+from src.telemetry.structured_logging import StructuredLogger, LogLevel
+from src.telemetry.tracing import setup_tracing
 from src.monitoring.health import HealthCheckService
 
 # Multi-tenant and advanced features
@@ -37,7 +41,15 @@ from src.self_service.onboarding_wizard import OnboardingWizard
 # Initialize global services
 metrics_collector = MetricsCollector()
 event_logger = EventLogger()
-health_service = HealthCheckService(metrics_collector)
+# Health service will be initialized after database connections are ready
+health_service = None
+
+# Initialize Stripe payment processor
+from src.payments.stripe import StripePaymentProcessor
+stripe_processor = StripePaymentProcessor(
+    metrics_collector=metrics_collector,
+    event_logger=event_logger
+)
 
 # Database connections
 postgres_conn = PostgresConnection(
@@ -251,6 +263,7 @@ from src.orchestration import (
     AutoOptimizer,
     PredictiveAutomation
 )
+from src.ai import PredictiveEngine
 
 workflow_engine = WorkflowEngine(
     postgres_conn=postgres_conn,
@@ -310,13 +323,40 @@ predictive_automation = PredictiveAutomation(
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager"""
+    # Setup structured logging
+    environment = os.getenv("ENVIRONMENT", "development")
+    log_level_str = os.getenv("LOG_LEVEL", "INFO")
+    log_level = LogLevel[log_level_str.upper()] if hasattr(LogLevel, log_level_str.upper()) else LogLevel.INFO
+    logger = StructuredLogger(__name__, log_level)
+    
+    # Setup OpenTelemetry tracing
+    service_name = os.getenv("SERVICE_NAME", "podcast-analytics-api")
+    otlp_endpoint = os.getenv("OTLP_ENDPOINT")
+    setup_tracing(service_name=service_name, otlp_endpoint=otlp_endpoint)
+    
     # Startup
-    logging.info("Starting application...")
+    logger.info("Starting application...")
+    
+    # Validate environment variables
+    try:
+        validated_env = load_and_validate_env()
+        logger.info("Environment validation passed")
+    except ValueError as e:
+        logger.error("Environment validation failed", extra={"error": str(e)})
+        if environment == "production":
+            logger.critical("Production environment validation failed. Exiting.")
+            sys.exit(1)
+        else:
+            logger.warning("Continuing with default values in development mode")
     
     # Initialize database connections
     await postgres_conn.initialize()
     await timescale_conn.initialize()
     await redis_conn.initialize()
+    
+    # Initialize health check service with database connection
+    global health_service
+    health_service = HealthCheckService(metrics_collector, postgres_conn=postgres_conn)
     
     # Initialize event logger
     await event_logger.initialize()
@@ -325,6 +365,7 @@ async def lifespan(app: FastAPI):
     app.state.metrics_collector = metrics_collector
     app.state.event_logger = event_logger
     app.state.postgres_conn = postgres_conn
+    app.state.stripe_processor = stripe_processor
     app.state.timescale_conn = timescale_conn
     app.state.redis_conn = redis_conn
     app.state.tenant_manager = tenant_manager
@@ -369,7 +410,7 @@ async def lifespan(app: FastAPI):
     yield
     
     # Shutdown
-    logging.info("Shutting down application...")
+    logger.info("Shutting down application...")
     
     # DELTA:20251113T114706Z Stop orchestration components
     await smart_scheduler.stop()
@@ -627,7 +668,7 @@ async def metrics():
 
 
 # Import routers
-from src.api import tenants, attribution, ai, cost, security, backup, optimization, risk, partners, business
+from src.api import tenants, attribution, ai, cost, security, backup, optimization, risk, partners, business, auth, billing, campaigns
 
 # DELTA:20251113_064143 Import ETL and Match routers
 try:
@@ -679,6 +720,9 @@ except ImportError:
     ORCHESTRATION_AVAILABLE = False
 
 # Include API routers
+app.include_router(auth.router, prefix="/api/v1/auth", tags=["authentication"])
+app.include_router(billing.router, prefix="/api/v1/billing", tags=["billing"])
+app.include_router(campaigns.router, prefix="/api/v1", tags=["campaigns"])
 app.include_router(tenants.router, prefix="/api/v1/tenants", tags=["tenants"])
 app.include_router(attribution.router, prefix="/api/v1/attribution", tags=["attribution"])
 app.include_router(ai.router, prefix="/api/v1/ai", tags=["ai"])
@@ -732,7 +776,8 @@ if ORCHESTRATION_AVAILABLE and os.getenv("ENABLE_ORCHESTRATION", "false").lower(
             event_logger=app.state.event_logger
         )
     except ImportError:
-        logger.warning("API usage middleware not available")
+        import logging
+        logging.warning("API usage middleware not available")
 
 # Legacy routers (if they exist)
 # from src.api import campaigns, analytics, reports, integrations

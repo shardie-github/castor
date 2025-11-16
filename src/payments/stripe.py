@@ -5,6 +5,7 @@ Handles payment processing using Stripe API.
 """
 
 import logging
+import os
 import stripe
 from datetime import datetime, timezone
 from typing import Dict, List, Optional, Any
@@ -16,8 +17,8 @@ from src.config import config
 
 logger = logging.getLogger(__name__)
 
-# Initialize Stripe
-stripe.api_key = config.stripe_secret_key
+# Initialize Stripe (will be set when processor is created)
+stripe.api_key = config.stripe_secret_key or os.getenv("STRIPE_SECRET_KEY", "")
 
 
 @dataclass

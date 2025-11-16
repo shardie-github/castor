@@ -2,7 +2,7 @@
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useState } from 'react'
-import { ErrorBoundary } from '@/components/error/ErrorBoundary'
+import { GlobalErrorBoundary } from '@/components/error/GlobalErrorBoundary'
 import { NotificationProvider } from '@/components/notifications/NotificationProvider'
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -29,12 +29,12 @@ export function Providers({ children }: { children: React.ReactNode }) {
   )
 
   return (
-    <ErrorBoundary>
+    <GlobalErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <NotificationProvider>
           {children}
         </NotificationProvider>
       </QueryClientProvider>
-    </ErrorBoundary>
+    </GlobalErrorBoundary>
   )
 }

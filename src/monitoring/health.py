@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from enum import Enum
 
 from src.telemetry.metrics import MetricsCollector
+from src.database.schema_validator import SchemaValidator, SchemaStatus
 
 logger = logging.getLogger(__name__)
 
@@ -52,8 +53,10 @@ class HealthCheckService:
     - Service dependencies
     """
     
-    def __init__(self, metrics_collector: MetricsCollector):
+    def __init__(self, metrics_collector: MetricsCollector, postgres_conn=None):
         self.metrics = metrics_collector
+        self.postgres_conn = postgres_conn
+        self.schema_validator = SchemaValidator(postgres_conn) if postgres_conn else None
     
     async def check_health(self) -> SystemHealthStatus:
         """Perform all health checks"""
@@ -72,6 +75,11 @@ class HealthCheckService:
         # External APIs check
         api_check = await self._check_external_apis()
         checks.append(api_check)
+        
+        # Schema validation check (if database connection available)
+        if self.schema_validator:
+            schema_check = await self._check_schema()
+            checks.append(schema_check)
         
         # Determine overall status
         overall_status = self._determine_overall_status(checks)
@@ -172,6 +180,56 @@ class HealthCheckService:
                 name="external_apis",
                 status=HealthStatus.DEGRADED,
                 message=f"Some external APIs unavailable: {str(e)}",
+                latency_ms=latency_ms
+            )
+    
+    async def _check_schema(self) -> HealthCheck:
+        """Check database schema validity"""
+        import time
+        start_time = time.time()
+        
+        try:
+            if not self.schema_validator:
+                return HealthCheck(
+                    name="schema",
+                    status=HealthStatus.DEGRADED,
+                    message="Schema validator not available",
+                    latency_ms=0
+                )
+            
+            validation_result = await self.schema_validator.validate_schema()
+            latency_ms = (time.time() - start_time) * 1000
+            
+            # Map schema status to health status
+            if validation_result.status == SchemaStatus.VALID:
+                health_status = HealthStatus.HEALTHY
+            elif validation_result.status == SchemaStatus.DEGRADED:
+                health_status = HealthStatus.DEGRADED
+            else:
+                health_status = HealthStatus.UNHEALTHY
+            
+            issue_count = len(validation_result.issues)
+            message = f"Schema validation: {validation_result.status.value} ({issue_count} issues)"
+            
+            return HealthCheck(
+                name="schema",
+                status=health_status,
+                message=message,
+                latency_ms=latency_ms,
+                metadata={
+                    "issues_count": issue_count,
+                    "tables_checked": validation_result.tables_checked,
+                    "indexes_checked": validation_result.indexes_checked,
+                    "constraints_checked": validation_result.constraints_checked
+                }
+            )
+            
+        except Exception as e:
+            latency_ms = (time.time() - start_time) * 1000
+            return HealthCheck(
+                name="schema",
+                status=HealthStatus.DEGRADED,
+                message=f"Schema validation failed: {str(e)}",
                 latency_ms=latency_ms
             )
     
