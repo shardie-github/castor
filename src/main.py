@@ -668,7 +668,7 @@ async def metrics():
 
 
 # Import routers
-from src.api import tenants, attribution, ai, cost, security, backup, optimization, risk, partners, business, auth, billing, campaigns
+from src.api import tenants, attribution, ai, cost, security, backup, optimization, risk, partners, business, auth, billing, campaigns, podcasts, episodes, sponsors, reports, analytics, users, email
 
 # DELTA:20251113_064143 Import ETL and Match routers
 try:
@@ -723,6 +723,13 @@ except ImportError:
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["authentication"])
 app.include_router(billing.router, prefix="/api/v1/billing", tags=["billing"])
 app.include_router(campaigns.router, prefix="/api/v1", tags=["campaigns"])
+app.include_router(podcasts.router, prefix="/api/v1", tags=["podcasts"])
+app.include_router(episodes.router, prefix="/api/v1", tags=["episodes"])
+app.include_router(sponsors.router, prefix="/api/v1", tags=["sponsors"])
+app.include_router(reports.router, prefix="/api/v1", tags=["reports"])
+app.include_router(analytics.router, prefix="/api/v1", tags=["analytics"])
+app.include_router(users.router, prefix="/api/v1", tags=["users"])
+app.include_router(email.router, prefix="/api/v1", tags=["email"])
 app.include_router(tenants.router, prefix="/api/v1/tenants", tags=["tenants"])
 app.include_router(attribution.router, prefix="/api/v1/attribution", tags=["attribution"])
 app.include_router(ai.router, prefix="/api/v1/ai", tags=["ai"])
