@@ -1,457 +1,328 @@
 # API Documentation
 
-Complete API reference for the Podcast Analytics & Sponsorship Platform.
-
 ## Base URL
-
-- **Development**: `http://localhost:8000`
-- **Production**: `https://api.castor.app`
+```
+https://api.example.com/api/v1
+```
 
 ## Authentication
-
-Most endpoints require authentication. Include the JWT token in the Authorization header:
-
+All endpoints require authentication via JWT token in the Authorization header:
 ```
-Authorization: Bearer <your-jwt-token>
+Authorization: Bearer <token>
 ```
 
-## API Endpoints
+## Endpoints
 
-### Health & Status
+### Campaigns
 
-#### GET `/health`
+#### List Campaigns
+```
+GET /campaigns
+```
 
-Health check endpoint.
+Returns a list of campaigns for the authenticated user.
 
 **Response:**
 ```json
-{
-  "status": "healthy",
-  "timestamp": "2024-01-15T10:00:00Z",
-  "checks": [
-    {
-      "name": "database",
-      "status": "healthy",
-      "message": "Connection successful",
-      "latency_ms": 5
-    }
-  ]
-}
+[
+  {
+    "campaign_id": "uuid",
+    "podcast_id": "uuid",
+    "sponsor_id": "uuid",
+    "name": "Campaign Name",
+    "status": "active",
+    "start_date": "2024-01-01T00:00:00Z",
+    "end_date": "2024-01-31T23:59:59Z",
+    "campaign_value": 5000.0
+  }
+]
 ```
 
-#### GET `/metrics`
+#### Get Campaign Analytics
+```
+GET /campaigns/{campaign_id}/analytics
+```
 
-Prometheus metrics endpoint.
-
-**Response:** Prometheus metrics format
-
----
-
-### Multi-Tenant Management
-
-#### GET `/api/v1/tenants`
-
-List all tenants (admin only).
-
-**Query Parameters:**
-- `page` (int): Page number (default: 1)
-- `limit` (int): Items per page (default: 20)
+Returns analytics data for a specific campaign.
 
 **Response:**
-```json
-{
-  "tenants": [
-    {
-      "tenant_id": "uuid",
-      "name": "Example Tenant",
-      "created_at": "2024-01-15T10:00:00Z"
-    }
-  ],
-  "total": 100,
-  "page": 1,
-  "limit": 20
-}
-```
-
-#### POST `/api/v1/tenants`
-
-Create a new tenant.
-
-**Request Body:**
-```json
-{
-  "name": "New Tenant",
-  "metadata": {}
-}
-```
-
-**Response:**
-```json
-{
-  "tenant_id": "uuid",
-  "name": "New Tenant",
-  "created_at": "2024-01-15T10:00:00Z"
-}
-```
-
----
-
-### Attribution Tracking
-
-#### GET `/api/v1/attribution/events`
-
-Get attribution events.
-
-**Query Parameters:**
-- `campaign_id` (uuid): Filter by campaign
-- `start_date` (datetime): Start date filter
-- `end_date` (datetime): End date filter
-- `page` (int): Page number
-- `limit` (int): Items per page
-
-**Response:**
-```json
-{
-  "events": [
-    {
-      "event_id": "uuid",
-      "campaign_id": "uuid",
-      "timestamp": "2024-01-15T10:00:00Z",
-      "attribution_method": "promo_code",
-      "conversion_value": 99.99
-    }
-  ],
-  "total": 1000,
-  "page": 1,
-  "limit": 20
-}
-```
-
-#### POST `/api/v1/attribution/events`
-
-Create an attribution event.
-
-**Request Body:**
 ```json
 {
   "campaign_id": "uuid",
-  "attribution_method": "promo_code",
-  "attribution_data": {
-    "promo_code": "PODCAST2024"
-  },
-  "conversion_data": {
+  "impressions": 10000,
+  "clicks": 500,
+  "conversions": 50,
+  "revenue": 10000.0,
+  "roi": 1.0,
+  "total_downloads": 5000,
+  "total_streams": 8000,
+  "total_listeners": 3000,
+  "attribution_events": 500
+}
+```
+
+### Attribution Events
+
+#### Get Attribution Events
+```
+GET /attribution/events/{campaign_id}?limit=100&offset=0
+```
+
+Returns attribution events for a campaign.
+
+**Query Parameters:**
+- `limit` (optional): Number of events to return (default: 100)
+- `offset` (optional): Number of events to skip (default: 0)
+
+**Response:**
+```json
+[
+  {
+    "event_id": "uuid",
+    "campaign_id": "uuid",
+    "event_type": "impression|click|conversion",
+    "timestamp": "2024-01-01T12:00:00Z",
+    "promo_code": "PODCAST2024",
     "conversion_type": "purchase",
-    "conversion_value": 99.99
+    "conversion_value": 100.0,
+    "attribution_method": "promo_code",
+    "page_url": "https://example.com/product",
+    "referrer": "https://podcast.com",
+    "utm_source": "podcast",
+    "utm_medium": "audio",
+    "utm_campaign": "campaign_name"
   }
-}
+]
 ```
 
-**Response:**
-```json
-{
-  "event_id": "uuid",
-  "status": "created"
-}
+#### Record Attribution Event
+```
+POST /attribution/events
 ```
 
-#### GET `/api/v1/attribution/roi/{campaign_id}`
+Records a new attribution event from the tracking pixel.
 
-Calculate ROI for a campaign.
-
-**Response:**
+**Request Body:**
 ```json
 {
   "campaign_id": "uuid",
-  "total_investment": 5000.00,
-  "total_revenue": 15000.00,
-  "roi": 200.00,
-  "roi_percentage": 200.0,
-  "attribution_count": 150,
-  "average_order_value": 100.00
+  "event_type": "impression|click|conversion",
+  "timestamp": "2024-01-01T12:00:00Z",
+  "promo_code": "PODCAST2024",
+  "conversion_type": "purchase",
+  "conversion_value": 100.0,
+  "page_url": "https://example.com/product",
+  "referrer": "https://podcast.com",
+  "utm_source": "podcast",
+  "utm_medium": "audio",
+  "utm_campaign": "campaign_name"
 }
 ```
 
----
+### Reports
 
-### AI Features
+#### Generate Report
+```
+POST /reports/generate
+```
 
-#### POST `/api/v1/ai/analyze-content`
-
-Analyze podcast content.
+Generates a new report for a campaign.
 
 **Request Body:**
 ```json
 {
-  "episode_id": "uuid",
-  "analysis_type": "sentiment|topics|keywords"
+  "campaign_id": "uuid",
+  "report_type": "sponsor_report|performance_summary|roi_report",
+  "format": "pdf|csv|excel",
+  "template_id": "basic_sponsor",
+  "include_roi": true,
+  "include_attribution": true,
+  "include_benchmarks": false,
+  "start_date": "2024-01-01T00:00:00Z",
+  "end_date": "2024-01-31T23:59:59Z"
 }
 ```
 
 **Response:**
 ```json
 {
-  "episode_id": "uuid",
-  "analysis": {
-    "sentiment": "positive",
-    "topics": ["technology", "business"],
-    "keywords": ["AI", "machine learning"]
-  }
+  "report_id": "uuid",
+  "campaign_id": "uuid",
+  "template_id": "basic_sponsor",
+  "report_type": "sponsor_report",
+  "format": "pdf",
+  "generated_at": "2024-01-15T10:00:00Z",
+  "file_size_bytes": 51200,
+  "file_url": "/api/v1/reports/filename.pdf",
+  "includes_roi": true,
+  "includes_attribution": true
 }
 ```
 
-#### POST `/api/v1/ai/generate-recommendations`
-
-Generate content recommendations.
-
-**Request Body:**
-```json
-{
-  "podcast_id": "uuid",
-  "recommendation_type": "sponsors|topics|guests"
-}
+#### List Reports
+```
+GET /reports?campaign_id={campaign_id}
 ```
 
-**Response:**
-```json
-{
-  "recommendations": [
-    {
-      "type": "sponsor",
-      "name": "Example Sponsor",
-      "match_score": 0.95,
-      "reason": "High audience overlap"
-    }
-  ]
-}
-```
-
----
-
-### Security
-
-#### POST `/api/v1/security/auth/login`
-
-Authenticate user.
-
-**Request Body:**
-```json
-{
-  "email": "user@example.com",
-  "password": "password"
-}
-```
-
-**Response:**
-```json
-{
-  "access_token": "jwt-token",
-  "token_type": "bearer",
-  "expires_in": 3600,
-  "user": {
-    "user_id": "uuid",
-    "email": "user@example.com",
-    "role": "user"
-  }
-}
-```
-
-#### POST `/api/v1/security/auth/refresh`
-
-Refresh access token.
-
-**Request Body:**
-```json
-{
-  "refresh_token": "refresh-token"
-}
-```
-
-**Response:**
-```json
-{
-  "access_token": "new-jwt-token",
-  "token_type": "bearer",
-  "expires_in": 3600
-}
-```
-
----
-
-### Cost Tracking
-
-#### GET `/api/v1/cost/tracking`
-
-Get cost tracking data.
+Returns a list of reports for the authenticated user.
 
 **Query Parameters:**
-- `start_date` (datetime): Start date
-- `end_date` (datetime): End date
-- `category` (string): Cost category
+- `campaign_id` (optional): Filter by campaign ID
+
+**Response:**
+```json
+[
+  {
+    "report_id": "uuid",
+    "campaign_id": "uuid",
+    "template_id": "basic_sponsor",
+    "report_type": "sponsor_report",
+    "format": "pdf",
+    "generated_at": "2024-01-15T10:00:00Z",
+    "file_size_bytes": 51200,
+    "file_url": "/api/v1/reports/filename.pdf",
+    "includes_roi": true,
+    "includes_attribution": true
+  }
+]
+```
+
+#### Download Report
+```
+GET /reports/{report_id}/download
+```
+
+Downloads a generated report file.
+
+**Response:** File download (PDF, CSV, or Excel)
+
+### Sprint Metrics
+
+#### Get Sprint Metrics Dashboard
+```
+GET /sprint-metrics/dashboard?start_date=2024-01-01&end_date=2024-01-31
+```
+
+Returns sprint metrics dashboard data (admin only).
 
 **Response:**
 ```json
 {
-  "costs": [
-    {
-      "date": "2024-01-15",
-      "category": "infrastructure",
-      "amount": 1000.00,
-      "currency": "USD"
-    }
-  ],
-  "total": 5000.00,
-  "period": {
-    "start": "2024-01-01",
-    "end": "2024-01-31"
-  }
+  "ttfv_distribution": {
+    "p50": 3600.0,
+    "p75": 7200.0,
+    "p95": 14400.0,
+    "mean": 5400.0,
+    "count": 100
+  },
+  "completion_rate": {
+    "rate": 0.75,
+    "total_campaigns": 100,
+    "completed_campaigns": 75
+  },
+  "error_rate": null,
+  "timestamp": "2024-01-15T10:00:00Z"
 }
 ```
 
----
+### Analytics
 
-### Optimization
+#### Get Dashboard Analytics
+```
+GET /analytics/dashboard
+```
 
-#### GET `/api/v1/optimization/churn-prediction`
-
-Get churn prediction scores.
+Returns dashboard analytics summary for the authenticated user.
 
 **Response:**
 ```json
 {
-  "predictions": [
+  "total_campaigns": 10,
+  "active_campaigns": 5,
+  "total_revenue": 50000.0,
+  "total_conversions": 500,
+  "average_roi": 1.5,
+  "recent_performance": [
     {
-      "user_id": "uuid",
-      "churn_probability": 0.75,
-      "risk_level": "high",
-      "factors": ["low_engagement", "no_recent_activity"]
+      "campaign_id": "uuid",
+      "conversions": 50,
+      "revenue": 5000.0,
+      "roi": 1.0
     }
   ]
 }
 ```
-
-#### POST `/api/v1/optimization/ab-test`
-
-Create an A/B test.
-
-**Request Body:**
-```json
-{
-  "name": "Homepage CTA Test",
-  "variants": [
-    {"name": "control", "traffic_percentage": 50},
-    {"name": "variant_a", "traffic_percentage": 50}
-  ],
-  "metrics": ["conversion_rate", "click_through_rate"]
-}
-```
-
-**Response:**
-```json
-{
-  "test_id": "uuid",
-  "status": "active",
-  "created_at": "2024-01-15T10:00:00Z"
-}
-```
-
----
 
 ## Error Responses
 
-All endpoints may return error responses in the following format:
+All endpoints may return the following error responses:
 
+### 401 Unauthorized
 ```json
 {
-  "error": {
-    "code": "ERROR_CODE",
-    "message": "Human-readable error message",
-    "details": {}
-  }
+  "detail": "Not authenticated"
 }
 ```
 
-### Common Error Codes
+### 403 Forbidden
+```json
+{
+  "detail": "Insufficient permissions"
+}
+```
 
-- `400 Bad Request`: Invalid request parameters
-- `401 Unauthorized`: Missing or invalid authentication
-- `403 Forbidden`: Insufficient permissions
-- `404 Not Found`: Resource not found
-- `429 Too Many Requests`: Rate limit exceeded
-- `500 Internal Server Error`: Server error
-- `503 Service Unavailable`: Service temporarily unavailable
+### 404 Not Found
+```json
+{
+  "detail": "Resource not found"
+}
+```
 
----
+### 422 Validation Error
+```json
+{
+  "detail": [
+    {
+      "loc": ["body", "campaign_id"],
+      "msg": "field required",
+      "type": "value_error.missing"
+    }
+  ]
+}
+```
+
+### 500 Internal Server Error
+```json
+{
+  "detail": "Internal server error"
+}
+```
 
 ## Rate Limiting
 
 API requests are rate-limited:
+- 100 requests per minute per user
+- 1000 requests per hour per user
 
-- **Per minute**: 60 requests
-- **Per hour**: 1000 requests
-- **Per day**: 10000 requests
-
-Rate limit headers are included in responses:
-
+Rate limit headers:
 ```
-X-RateLimit-Limit: 60
-X-RateLimit-Remaining: 45
-X-RateLimit-Reset: 1642248000
+X-RateLimit-Limit: 100
+X-RateLimit-Remaining: 95
+X-RateLimit-Reset: 1640000000
 ```
-
----
 
 ## Pagination
 
-List endpoints support pagination:
+Endpoints that return lists support pagination via query parameters:
+- `limit`: Number of items per page (default: 50, max: 100)
+- `offset`: Number of items to skip (default: 0)
 
-**Query Parameters:**
-- `page` (int): Page number (default: 1)
-- `limit` (int): Items per page (default: 20, max: 100)
+## Webhooks
 
-**Response:**
-```json
-{
-  "items": [...],
-  "total": 1000,
-  "page": 1,
-  "limit": 20,
-  "pages": 50
-}
-```
+Webhooks can be configured to receive events:
+- `campaign.created`
+- `campaign.completed`
+- `report.generated`
+- `attribution.conversion`
 
----
-
-## OpenAPI Documentation
-
-Interactive API documentation is available at:
-
-- **Swagger UI**: `/api/docs`
-- **ReDoc**: `/api/redoc`
-- **OpenAPI JSON**: `/api/openapi.json`
-
----
-
-## SDKs & Client Libraries
-
-### Python
-
-```python
-from castor_sdk import CastorClient
-
-client = CastorClient(api_key="your-api-key")
-events = client.attribution.get_events(campaign_id="uuid")
-```
-
-### JavaScript/TypeScript
-
-```typescript
-import { CastorClient } from '@castor/sdk'
-
-const client = new CastorClient({ apiKey: 'your-api-key' })
-const events = await client.attribution.getEvents({ campaignId: 'uuid' })
-```
-
----
-
-*Last Updated: 2024-01-15*
-*API Version: 1.0.0*
+See `/settings/webhooks` for webhook configuration.

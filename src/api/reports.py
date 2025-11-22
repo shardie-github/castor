@@ -108,6 +108,23 @@ async def generate_report(
             detail=f"Invalid report type or format: {str(e)}"
         )
     
+    # Get dependencies for report generation
+    from src.analytics.analytics_store import AnalyticsStore
+    from src.analytics.roi_calculator import ROICalculator
+    from src.database import TimescaleConnection
+    
+    timescale_conn = request.app.state.timescale_conn if hasattr(request.app.state, 'timescale_conn') else None
+    analytics_store = AnalyticsStore(
+        metrics_collector=request.app.state.metrics_collector,
+        timescale_conn=timescale_conn,
+        postgres_conn=postgres_conn
+    )
+    
+    roi_calculator = ROICalculator(
+        metrics_collector=request.app.state.metrics_collector,
+        event_logger=event_logger
+    )
+    
     report = await report_generator.generate_report(
         campaign_id=report_data.campaign_id,
         report_type=report_type,
@@ -117,7 +134,10 @@ async def generate_report(
         include_attribution=report_data.include_attribution,
         include_benchmarks=report_data.include_benchmarks,
         start_date=report_data.start_date,
-        end_date=report_data.end_date
+        end_date=report_data.end_date,
+        postgres_conn=postgres_conn,
+        analytics_store=analytics_store,
+        roi_calculator=roi_calculator
     )
     
     # Store report metadata in database
@@ -153,9 +173,25 @@ async def generate_report(
         properties={
             'report_id': report.report_id,
             'campaign_id': report.campaign_id,
-            'report_type': report.report_type.value
+            'report_type': report.report_type.value,
+            'timestamp': datetime.utcnow().isoformat()
         }
     )
+    
+    # Update campaign status to 'completed' when report is generated
+    try:
+        await postgres_conn.execute(
+            """
+            UPDATE campaigns 
+            SET status = 'completed', updated_at = NOW()
+            WHERE campaign_id = $1
+            """,
+            report.campaign_id
+        )
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(f"Failed to update campaign status: {e}")
     
     return ReportResponse(
         report_id=report.report_id,
@@ -168,6 +204,55 @@ async def generate_report(
         file_url=report.file_url,
         includes_roi=report.includes_roi,
         includes_attribution=report.includes_attribution
+    )
+
+
+@router.get("/reports/{report_id}/download")
+async def download_report(
+    report_id: str,
+    current_user: dict = Depends(get_current_user),
+    postgres_conn: PostgresConnection = Depends(get_postgres_conn)
+):
+    """Download a generated report"""
+    # Verify ownership
+    report = await postgres_conn.fetchrow(
+        """
+        SELECT file_url, format FROM reports
+        WHERE report_id = $1 AND user_id = $2
+        """,
+        report_id,
+        current_user['user_id']
+    )
+    
+    if not report:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Report not found"
+        )
+    
+    file_url = report.get('file_url')
+    if not file_url:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Report file not available"
+        )
+    
+    # In production, would serve from S3 or similar
+    import os
+    reports_dir = os.getenv("REPORTS_STORAGE_PATH", "/tmp/reports")
+    file_path = os.path.join(reports_dir, os.path.basename(file_url))
+    
+    if not os.path.exists(file_path):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Report file not found on server"
+        )
+    
+    from fastapi.responses import FileResponse
+    return FileResponse(
+        file_path,
+        media_type="application/pdf" if report['format'] == 'pdf' else "application/octet-stream",
+        filename=os.path.basename(file_path)
     )
 
 

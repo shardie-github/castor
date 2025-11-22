@@ -668,7 +668,7 @@ async def metrics():
 
 
 # Import routers
-from src.api import tenants, attribution, ai, cost, security, backup, optimization, risk, partners, business, auth, billing, campaigns, podcasts, episodes, sponsors, reports, analytics, users, email
+from src.api import tenants, attribution, ai, cost, security, backup, optimization, risk, partners, business, auth, billing, campaigns, podcasts, episodes, sponsors, reports, analytics, users, email, sprint_metrics, monitoring
 
 # DELTA:20251113_064143 Import ETL and Match routers
 try:
@@ -728,6 +728,8 @@ app.include_router(episodes.router, prefix="/api/v1", tags=["episodes"])
 app.include_router(sponsors.router, prefix="/api/v1", tags=["sponsors"])
 app.include_router(reports.router, prefix="/api/v1", tags=["reports"])
 app.include_router(analytics.router, prefix="/api/v1", tags=["analytics"])
+app.include_router(sprint_metrics.router, prefix="/api/v1", tags=["sprint-metrics"])
+app.include_router(monitoring.router, prefix="/api/v1", tags=["monitoring"])
 app.include_router(users.router, prefix="/api/v1", tags=["users"])
 app.include_router(email.router, prefix="/api/v1", tags=["email"])
 app.include_router(tenants.router, prefix="/api/v1/tenants", tags=["tenants"])

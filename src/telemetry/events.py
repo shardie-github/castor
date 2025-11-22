@@ -273,16 +273,44 @@ class EventLogger:
         events_to_flush = self.events.copy()
         self.events.clear()
         
-        # In production, this would send to:
-        # - PostHog/Mixpanel/Amplitude
+        # Send to internal analytics store (PostgreSQL)
+        try:
+            # Import here to avoid circular dependencies
+            from src.database import PostgresConnection
+            from src.main import postgres_conn
+            
+            if postgres_conn:
+                for event in events_to_flush:
+                    try:
+                        await postgres_conn.execute(
+                            """
+                            INSERT INTO events (event_id, event_type, user_id, session_id, timestamp, properties, context)
+                            VALUES ($1, $2, $3, $4, $5, $6, $7)
+                            ON CONFLICT (event_id) DO NOTHING
+                            """,
+                            event.event_id,
+                            event.event_type,
+                            event.user_id,
+                            event.session_id,
+                            event.timestamp,
+                            json.dumps(event.properties, default=str),
+                            json.dumps(event.context, default=str)
+                        )
+                    except Exception as e:
+                        logger.warning(f"Failed to store event {event.event_id}: {e}")
+        except Exception as e:
+            logger.warning(f"Failed to flush events to database: {e}")
+        
+        # In production, this would also send to:
+        # - PostHog/Mixpanel/Amplitude (via their SDKs)
         # - Segment
         # - Data warehouse
-        # - Internal analytics store
+        # For now, we store in PostgreSQL events table
         
-        logger.info(f"Flushing {len(events_to_flush)} events")
+        logger.info(f"Flushed {len(events_to_flush)} events to storage")
         
-        # For now, just log them
-        for event in events_to_flush:
+        # Also log for debugging
+        for event in events_to_flush[:10]:  # Log first 10 to avoid spam
             logger.debug(f"Event: {event.event_type} - {json.dumps(asdict(event), default=str)}")
     
     async def _periodic_flush(self):

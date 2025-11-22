@@ -135,9 +135,26 @@ async def create_campaign(
         properties={
             'campaign_id': campaign.campaign_id,
             'podcast_id': campaign.podcast_id,
-            'sponsor_id': campaign.sponsor_id
+            'sponsor_id': campaign.sponsor_id,
+            'timestamp': datetime.utcnow().isoformat()
         }
     )
+    
+    # Calculate TTFV if this is the user's first campaign
+    try:
+        from src.analytics.analytics_store import AnalyticsStore
+        from src.database import TimescaleConnection
+        timescale_conn = request.app.state.timescale_conn if request else None
+        analytics_store = AnalyticsStore(
+            metrics_collector=request.app.state.metrics_collector if request else None,
+            timescale_conn=timescale_conn,
+            postgres_conn=postgres_conn
+        )
+        await analytics_store.calculate_ttfv(str(current_user['user_id']))
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(f"Failed to calculate TTFV: {e}")
     
     return CampaignResponse(
         campaign_id=campaign.campaign_id,
@@ -447,9 +464,15 @@ async def get_campaign_analytics(
     campaign_id: str,
     current_user: dict = Depends(get_current_user),
     request: Request = None,
-    postgres_conn: PostgresConnection = Depends(get_postgres_conn)
+    postgres_conn: PostgresConnection = Depends(get_postgres_conn),
+    analytics_store = None
 ):
     """Get campaign analytics"""
+    from src.analytics.analytics_store import AnalyticsStore
+    from src.database import TimescaleConnection
+    from src.telemetry.metrics import MetricsCollector
+    from src.telemetry.events import EventLogger
+    
     # Verify ownership
     campaign = await postgres_conn.fetchrow(
         """
@@ -467,13 +490,85 @@ async def get_campaign_analytics(
             detail="Campaign not found"
         )
     
-    # Get analytics data
-    # TODO: Implement actual analytics aggregation
-    return {
-        "campaign_id": campaign_id,
-        "impressions": 0,
-        "clicks": 0,
-        "conversions": 0,
-        "revenue": 0.0,
-        "roi": 0.0
-    }
+    # Get analytics store instance
+    if analytics_store is None:
+        metrics_collector = request.app.state.metrics_collector
+        timescale_conn = request.app.state.timescale_conn
+        analytics_store = AnalyticsStore(
+            metrics_collector=metrics_collector,
+            timescale_conn=timescale_conn,
+            postgres_conn=postgres_conn
+        )
+    
+    # Get campaign performance from analytics store
+    try:
+        performance = await analytics_store.calculate_campaign_performance(
+            campaign_id=campaign_id,
+            podcast_id=str(campaign['podcast_id']),
+            start_date=campaign['start_date'],
+            end_date=campaign['end_date']
+        )
+        
+        # Calculate ROI if we have campaign value
+        roi = None
+        if campaign.get('campaign_value') and campaign['campaign_value'] > 0:
+            roi = ((performance.conversion_value - campaign['campaign_value']) / campaign['campaign_value']) * 100
+        
+        return {
+            "campaign_id": campaign_id,
+            "impressions": performance.total_downloads + performance.total_streams,
+            "clicks": performance.attribution_events,
+            "conversions": performance.conversions,
+            "revenue": performance.conversion_value,
+            "roi": roi,
+            "total_downloads": performance.total_downloads,
+            "total_streams": performance.total_streams,
+            "total_listeners": performance.total_listeners,
+            "attribution_events": performance.attribution_events
+        }
+    except Exception as e:
+        # Fallback to basic query if analytics store fails
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(f"Analytics store query failed: {e}, falling back to basic query")
+        
+        # Get attribution events count
+        attribution_count = await postgres_conn.fetchval(
+            """
+            SELECT COUNT(*) FROM attribution_events
+            WHERE campaign_id = $1
+            """,
+            campaign_id
+        ) or 0
+        
+        # Get conversions count
+        conversions_count = await postgres_conn.fetchval(
+            """
+            SELECT COUNT(*) FROM attribution_events
+            WHERE campaign_id = $1 AND conversion_type IS NOT NULL
+            """,
+            campaign_id
+        ) or 0
+        
+        # Get total conversion value
+        conversion_value = await postgres_conn.fetchval(
+            """
+            SELECT COALESCE(SUM(conversion_value), 0) FROM attribution_events
+            WHERE campaign_id = $1 AND conversion_value IS NOT NULL
+            """,
+            campaign_id
+        ) or 0.0
+        
+        # Calculate ROI
+        roi = None
+        if campaign.get('campaign_value') and campaign['campaign_value'] > 0:
+            roi = ((conversion_value - campaign['campaign_value']) / campaign['campaign_value']) * 100
+        
+        return {
+            "campaign_id": campaign_id,
+            "impressions": 0,  # Would need listener metrics
+            "clicks": attribution_count,
+            "conversions": conversions_count,
+            "revenue": float(conversion_value),
+            "roi": roi
+        }
