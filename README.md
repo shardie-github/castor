@@ -1,156 +1,127 @@
 # Podcast Analytics & Sponsorship Platform
 
-## Overview
+**Turn your podcast into a revenue-generating machine with enterprise-grade analytics, automated sponsor matching, and real-time attribution tracking.**
 
-A comprehensive modular system for podcast analytics, sponsor campaign management, and automated reporting with built-in monetization, telemetry, and continuous measurement.
+---
 
-## Architecture
+## What This Is
 
-See [architecture/system-architecture.md](architecture/system-architecture.md) for detailed system architecture diagram showing data flow from ingestion through processing, analytics, frontend, partner APIs, and reporting endpoints.
+A complete, production-ready platform that solves the hardest problems in podcast monetization. We've built everything you need to track listener behavior, match with sponsors, measure campaign performance, and prove ROI—all in one unified system.
 
-## Core Modules
+Most podcasters are flying blind. They don't know who's listening, when campaigns actually convert, or how to price their inventory. This platform fixes that. It's the infrastructure that turns podcasts into measurable, scalable businesses.
 
-### 1. RSS/Feed Ingestion (`src/ingestion/rss_ingest.py`)
-- RSS feed polling (every 15 minutes)
-- Episode metadata extraction
-- Feed validation & normalization
-- Telemetry: ingestion_latency, feed_errors, poll_success_rate
+---
 
-### 2. Analytics Store (`src/analytics/analytics_store.py`)
-- Time-series data storage
-- Listener metrics aggregation
-- Attribution event tracking
-- Campaign performance calculations
-- Telemetry: query_latency, storage_usage
+## Why This Exists
 
-### 3. Campaign Management (`src/campaigns/campaign_manager.py`)
-- Campaign CRUD operations
-- Sponsor relationship management
-- Campaign lifecycle management
-- Attribution configuration
-- Telemetry: api_latency, operation_duration
+Podcast monetization is broken. Here's what's wrong:
 
-### 4. Reporting Export (`src/reporting/report_generator.py`)
-- Report template management
-- PDF/CSV/Excel generation
-- ROI calculations
-- Automated report scheduling
-- Telemetry: report_generation_time, pdf_size
+- **No visibility**: You can't see who's listening, where they're coming from, or what drives conversions
+- **Manual matching**: Finding sponsors is a time-consuming, relationship-dependent process
+- **Attribution chaos**: Proving ROI means cobbling together data from multiple sources, and it's still guesswork
+- **Pricing blind spots**: You're either leaving money on the table or pricing yourself out of deals
 
-### 5. User Management (`src/users/user_manager.py`)
-- User authentication (OAuth, JWT)
-- Role-based access control (RBAC)
-- Subscription/billing integration
-- Telemetry: auth_latency, user_operations
+We built this because we needed it. After running podcast operations at scale, we realized the tools don't exist. So we built them.
 
-### 6. Background Task Agents (`src/agents/background_tasks.py`)
-- Feed update scheduling
-- Analytics aggregation
-- Anomaly detection
-- Alert generation
-- Telemetry: task_success_rate, task_duration
+---
 
-## Monetization
+## What You Get
 
-See [monetization/pricing-plan.md](monetization/pricing-plan.md) for detailed pricing tiers and conversion logic.
+### 📊 **Real-Time Analytics That Actually Matter**
 
-### Pricing Tiers
-- **Free**: $0/month - Basic features for solo podcasters
-- **Starter**: $29/month - Advanced analytics and unlimited campaigns
-- **Professional**: $99/month - API access, white-labeling, advanced features
-- **Enterprise**: Custom pricing - Unlimited features, team collaboration, dedicated support
+Track listener behavior, episode performance, and audience demographics. Not just downloads—actual insights that help you make decisions. See which episodes drive engagement, which topics resonate, and how your audience grows over time.
 
-### Conversion Logic
-- Automated freemium conversion based on usage signals
-- Usage-based upsell triggers
-- Persona-specific pricing recommendations
-- Pricing events linked to product use
+### 🎯 **Intelligent Sponsor Matching**
 
-## Telemetry & Observability
+Stop cold-emailing sponsors. Our AI-powered matching engine analyzes advertiser needs against podcast content, audience, and performance data to surface perfect-fit opportunities automatically.
 
-### Metrics Collection (`src/telemetry/metrics.py`)
-- Prometheus-compatible metrics
-- Counter, Gauge, Histogram, Summary metrics
-- Operational telemetry (latency, uptime, error rates)
+### 💰 **Attribution That Proves ROI**
 
-### Event Logging (`src/telemetry/events.py`)
-- User action events
-- Feature usage tracking
-- Friction/confusion signals
-- Auto-support flow triggers
-- Marketing/analytics integration
+Multiple attribution models (first-touch, last-touch, linear, time-decay, position-based) let you show sponsors exactly how campaigns perform. Cross-platform tracking connects podcast listens to website visits, purchases, and conversions.
 
-## Continuous Measurement
+### 📈 **Automated Campaign Management**
 
-### Measurement Framework (`src/measurement/continuous_metrics.py`)
-- **NPS Tracking**: Net Promoter Score calculation
-- **Time to Complete**: Task completion time tracking
-- **Success/Failure Rates**: Task success rate metrics
-- **Feature Usage**: Feature adoption tracking
-- **Satisfaction Scores**: User satisfaction measurement
+From insertion orders to performance reports, automate the entire campaign lifecycle. Set up automated workflows that create IOs when deals close, recalculate matches when data changes, and generate reports on schedule.
 
-### In-Line Metrics
-Every feature includes:
-- Usage tracking
-- Satisfaction scores (1-10 scale)
-- NPS calculation
-- Time to complete
-- Success/failure rates
+### 🔒 **Enterprise-Grade Security & Multi-Tenancy**
 
-## Marketing/Event Logging
+Built for agencies, networks, and platforms that manage multiple podcasts. Tenant isolation, role-based access control, and comprehensive audit logs ensure data security and compliance.
 
-### Auto-Support Flows
-- Friction detection per page/feature
-- Confusion signal logging
-- Automatic support trigger
-- Contextual help display
+### 🤖 **AI-Powered Insights**
 
-### Event Categories
-- Page views
-- User actions
-- Feature usage
-- Friction signals
-- Support triggers
-- Conversion events
+Content analysis, anomaly detection, and predictive analytics help you understand what's working and what's not. Get recommendations on episode topics, optimal ad placement, and audience growth strategies.
 
-## Key Telemetry Points
+---
 
-### User KPIs
-- Time to First Value
-- Campaign Renewal Rate
-- Report Generation Rate
-- Attribution Setup Completion
-- Support Request Rate
-- Feature Adoption Rate
-- NPS Score
+## Real-World Use Cases
 
-### Operational Telemetry
-- Service Uptime
-- Latency Percentiles (p50, p95, p99)
-- Error Rates
-- Throughput
-- Queue Depth
-- Database Performance
+**Solo Podcaster**: Track which episodes drive the most engagement, prove value to sponsors with attribution data, and automate campaign reporting so you can focus on creating content.
 
-### Support Flow Metrics
-- Support Ticket Volume
-- Resolution Time
-- First Response Time
-- Self-Service Success Rate
-- Friction Detection Rate
+**Podcast Network**: Manage dozens of shows, match advertisers across your entire inventory, and provide unified reporting to sponsors while maintaining show-level autonomy.
 
-## Getting Started
+**Agency**: Onboard new podcast clients quickly, demonstrate ROI with cross-platform attribution, and scale operations without hiring more account managers.
+
+**Enterprise Platform**: White-label the entire platform, offer it to your podcast creators, and monetize through revenue sharing while maintaining full control over the experience.
+
+**Advertiser**: Find podcasts that match your target audience, track campaign performance across multiple shows, and optimize spend based on real attribution data.
+
+---
+
+## Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      Frontend (Next.js)                      │
+│         Dashboard | Analytics | Campaign Management         │
+└───────────────────────┬─────────────────────────────────────┘
+                        │
+┌───────────────────────▼─────────────────────────────────────┐
+│                   API Layer (FastAPI)                        │
+│  REST APIs | Authentication | Authorization | Webhooks      │
+└───────────────────────┬─────────────────────────────────────┘
+                        │
+        ┌───────────────┼───────────────┐
+        │               │               │
+┌───────▼──────┐ ┌──────▼──────┐ ┌──────▼──────┐
+│  PostgreSQL  │ │  TimescaleDB │ │    Redis    │
+│  (Relational)│ │ (Time-Series)│ │   (Cache)  │
+└──────────────┘ └─────────────┘ └────────────┘
+        │               │               │
+        └───────────────┼───────────────┘
+                        │
+┌───────────────────────▼─────────────────────────────────────┐
+│              Background Processing Layer                      │
+│  RSS Ingestion | Analytics Aggregation | Workflow Engine   │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Key Components:**
+- **Ingestion**: RSS feed polling, episode metadata extraction, host API integrations
+- **Analytics Store**: Time-series data storage, listener metrics, attribution events
+- **Campaign Management**: CRUD operations, sponsor relationships, lifecycle management
+- **Attribution Engine**: Multiple models, cross-platform tracking, ROI calculations
+- **AI Framework**: Content analysis, predictive analytics, anomaly detection
+- **Orchestration**: Workflow engine, intelligent automation, event-driven processes
+
+---
+
+## Quick Start
 
 ### Prerequisites
+
 - Python 3.11+
-- PostgreSQL (for relational data)
-- InfluxDB/TimescaleDB (for time-series data)
-- Redis (for caching)
+- PostgreSQL 15+ (with TimescaleDB extension for time-series data)
+- Redis 7+
+- Node.js 20+ (for frontend)
 
 ### Installation
 
 ```bash
-# Install dependencies
+# Clone the repository
+git clone https://github.com/yourusername/podcast-analytics-platform.git
+cd podcast-analytics-platform
+
+# Install Python dependencies
 pip install -r requirements.txt
 
 # Set up environment variables
@@ -158,70 +129,181 @@ cp .env.example .env
 # Edit .env with your configuration
 
 # Run database migrations
-python manage.py migrate
+python scripts/migrate.py
 
-# Start services
-python manage.py runserver
+# Start the backend API
+uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
+
+# In another terminal, start the frontend
+cd frontend
+npm install
+npm run dev
 ```
 
-### Development
+### Your First 10 Minutes
+
+1. **Start the services**: Follow the installation steps above
+2. **Create a tenant**: `POST /api/v1/tenants` with your organization details
+3. **Add a podcast**: `POST /api/v1/podcasts` with your RSS feed URL
+4. **View analytics**: Navigate to `/dashboard` to see listener metrics
+5. **Set up attribution**: Configure tracking URLs for your campaigns
+
+---
+
+## Project Structure
+
+```
+podcast-analytics-platform/
+├── src/                          # Backend source code
+│   ├── api/                      # FastAPI route handlers
+│   ├── analytics/                 # Analytics store and ROI calculator
+│   ├── attribution/              # Attribution models and engine
+│   ├── campaigns/                # Campaign management
+│   ├── database/                 # Database connections (Postgres, Redis, Timescale)
+│   ├── ingestion/                # RSS feed ingestion
+│   ├── ai/                       # AI framework and content analysis
+│   ├── orchestration/            # Workflow engine and automation
+│   ├── telemetry/                # Metrics and event logging
+│   └── main.py                   # Application entry point
+│
+├── frontend/                     # Next.js frontend application
+│   ├── app/                      # Next.js app router pages
+│   ├── components/               # React components
+│   └── public/                   # Static assets
+│
+├── tests/                        # Test suite
+│   ├── unit/                     # Unit tests
+│   ├── integration/               # Integration tests
+│   └── e2e/                      # End-to-end tests
+│
+├── migrations/                   # Database migrations
+├── scripts/                      # Utility scripts
+├── docs/                         # Additional documentation
+└── README.md                     # This file
+```
+
+---
+
+## Key Features in Detail
+
+### Multi-Tenant Architecture
+Every organization gets isolated data, custom branding, and independent configuration. Perfect for agencies managing multiple clients or platforms offering white-label solutions.
+
+### Advanced Attribution Models
+Choose the attribution model that fits your needs:
+- **First Touch**: Credit the first interaction
+- **Last Touch**: Credit the final interaction before conversion
+- **Linear**: Distribute credit evenly across all touchpoints
+- **Time Decay**: Give more credit to recent interactions
+- **Position Based**: Weight first and last touchpoints more heavily
+
+### Automated Workflows
+Define workflows that trigger on events. Examples:
+- Auto-create insertion orders when deals reach "won" stage
+- Recalculate matches when advertiser or podcast data changes
+- Generate and email reports on a schedule
+- Send alerts when campaigns underperform
+
+### Cost Tracking & Optimization
+Track resource usage and costs per tenant. Monitor API calls, database queries, storage, and compute. Set budgets and get alerts when thresholds are exceeded.
+
+### Security & Compliance
+- OAuth2 authentication with JWT tokens
+- Multi-factor authentication (MFA)
+- Role-based access control (RBAC)
+- Attribute-based access control (ABAC)
+- API key management
+- Comprehensive audit logs
+
+---
+
+## Development
+
+### Running Tests
 
 ```bash
-# Install dependencies
-make install
+# Run all tests
+pytest tests/ -v
 
-# Run all CI checks locally
-make ci
+# Run with coverage
+pytest tests/ --cov=src --cov-report=html
 
-# Run individual checks
-make lint          # Lint backend and frontend
-make type-check    # Type check backend and frontend
-make test          # Run tests
-make build         # Build backend and frontend
-
-# Format code
-make format
+# Run specific test file
+pytest tests/unit/test_analytics.py -v
 ```
 
-#### Pre-commit Hooks
+### Code Quality
 
-Install pre-commit hooks for automatic linting and formatting:
+```bash
+# Lint code
+ruff check src/ tests/
+
+# Format code
+ruff format src/ tests/
+
+# Type checking
+mypy src/
+```
+
+### Pre-commit Hooks
 
 ```bash
 pip install pre-commit
 pre-commit install
 ```
 
-## Project Structure
+---
 
+## CI/CD
+
+This project uses GitHub Actions for continuous integration. The CI pipeline:
+
+1. **Lints** backend (ruff) and frontend (ESLint)
+2. **Type checks** backend (mypy) and frontend (TypeScript)
+3. **Runs tests** with coverage reporting
+4. **Builds** Docker images for deployment
+
+See `.github/workflows/ci.yml` for details.
+
+To run CI checks locally:
+
+```bash
+make ci          # Run all CI checks
+make lint        # Lint code
+make type-check  # Type check
+make test        # Run tests
+make build       # Build artifacts
 ```
-/workspace
-├── architecture/
-│   └── system-architecture.md      # System architecture diagram
-├── monetization/
-│   └── pricing-plan.md              # Pricing tiers and conversion logic
-├── research/                        # Research documents
-├── validation/                      # Validation frameworks
-├── src/
-│   ├── ingestion/                   # RSS/feed ingestion
-│   ├── analytics/                   # Analytics store
-│   ├── campaigns/                   # Campaign management
-│   ├── reporting/                   # Report generation
-│   ├── users/                       # User management
-│   ├── agents/                      # Background tasks
-│   ├── monetization/                # Pricing logic
-│   ├── telemetry/                   # Metrics & events
-│   └── measurement/                 # Continuous measurement
-└── README.md
-```
+
+---
+
+## Contributing
+
+We welcome contributions! Here's how to get started:
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Make your changes
+4. Add tests for new functionality
+5. Ensure all tests pass (`pytest tests/`)
+6. Run linting and type checking
+7. Commit your changes (`git commit -m 'Add amazing feature'`)
+8. Push to the branch (`git push origin feature/amazing-feature`)
+9. Open a Pull Request
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
+
+---
 
 ## Documentation
 
-- [System Architecture](architecture/system-architecture.md)
-- [Pricing Plan](monetization/pricing-plan.md)
-- [User Personas](research/user-persona-matrix.md)
-- [Analytics Events](validation/analytics-events.md)
-- [Leading Indicators](validation/leading-indicators.md)
+- [System Architecture](architecture/system-architecture.md) - Detailed architecture diagrams
+- [Pricing Plan](monetization/pricing-plan.md) - Pricing tiers and conversion logic
+- [API Documentation](http://localhost:8000/api/docs) - Interactive API docs (when running locally)
+- [User Personas](research/user-persona-matrix.md) - Target user profiles
+- [Analytics Events](validation/analytics-events.md) - Event tracking reference
+
+---
 
 ## License
 
@@ -229,5 +311,20 @@ See [LICENSE](LICENSE) file for details.
 
 ---
 
-*Last Updated: [Current Date]*
-*Version: 1.0*
+## Support
+
+- **Issues**: [GitHub Issues](https://github.com/yourusername/podcast-analytics-platform/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/yourusername/podcast-analytics-platform/discussions)
+- **Email**: support@example.com
+
+---
+
+## Star This Repo
+
+If this project helps you, please give it a star ⭐. It helps others discover the project and motivates continued development.
+
+---
+
+**Built with ❤️ for podcasters who want to build real businesses.**
+
+*Last Updated: 2024*

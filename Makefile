@@ -1,4 +1,4 @@
-.PHONY: ci lint lint-backend lint-frontend test test-backend test-frontend type-check format install build build-backend build-frontend help
+.PHONY: ci lint lint-backend lint-frontend test test-backend test-frontend type-check format install build build-backend build-frontend help dev-start dev-stop quick-check
 
 help:
 	@echo "Available commands:"
@@ -13,6 +13,11 @@ help:
 	@echo "  make format          - Format backend and frontend code"
 	@echo "  make build           - Build backend and frontend"
 	@echo "  make install         - Install all dependencies"
+	@echo ""
+	@echo "Development helpers (solo operator optimized):"
+	@echo "  make dev-start       - Start development servers"
+	@echo "  make dev-stop        - Stop development servers"
+	@echo "  make quick-check     - Quick health check before commit"
 
 ci: lint type-check test build
 	@echo "✅ All CI checks passed!"
@@ -70,3 +75,15 @@ install:
 	@echo "📦 Installing dependencies..."
 	pip install -r requirements.txt
 	cd frontend && npm ci
+
+dev-start:
+	@echo "🚀 Starting development servers..."
+	@./scripts/dev.sh start
+
+dev-stop:
+	@echo "🛑 Stopping development servers..."
+	@./scripts/dev.sh stop
+
+quick-check:
+	@echo "🔍 Running quick health check..."
+	@./scripts/quick-check.sh
