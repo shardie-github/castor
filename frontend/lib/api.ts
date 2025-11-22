@@ -18,23 +18,43 @@ apiClient.interceptors.request.use((config) => {
   return config
 })
 
+// Add error handling interceptor
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    // Handle 401 Unauthorized - redirect to login
+    if (error.response?.status === 401) {
+      localStorage.removeItem('auth_token')
+      if (typeof window !== 'undefined') {
+        window.location.href = '/auth/login'
+      }
+    }
+    
+    // Log error for debugging
+    console.error('API Error:', {
+      url: error.config?.url,
+      method: error.config?.method,
+      status: error.response?.status,
+      message: error.response?.data?.detail || error.message
+    })
+    
+    return Promise.reject(error)
+  }
+)
+
 export const api = {
-  // Listener Engagement
-  async getListenerEngagement() {
-    const { data } = await apiClient.get('/analytics/listener-engagement')
-    return data
-  },
-
-  // Ad Performance
-  async getAdPerformance() {
-    const { data } = await apiClient.get('/analytics/ad-performance')
-    return data
-  },
-
-  // Sponsor ROI
-  async getSponsorROI() {
-    const { data } = await apiClient.get('/analytics/sponsor-roi')
-    return data
+  // Dashboard Analytics
+  async getDashboardAnalytics() {
+    try {
+      const { data } = await apiClient.get('/analytics/dashboard')
+      return data
+    } catch (error: any) {
+      // Return null if endpoint doesn't exist yet
+      if (error.response?.status === 404) {
+        return null
+      }
+      throw error
+    }
   },
 
   // Campaigns
@@ -45,6 +65,33 @@ export const api = {
 
   async getCampaign(campaignId: string) {
     const { data } = await apiClient.get(`/campaigns/${campaignId}`)
+    return data
+  },
+
+  async getCampaignAnalytics(campaignId: string) {
+    const { data } = await apiClient.get(`/campaigns/${campaignId}/analytics`)
+    return data
+  },
+
+  // Sprint Metrics
+  async getSprintMetrics(startDate?: string, endDate?: string) {
+    const params = new URLSearchParams()
+    if (startDate) params.append('start_date', startDate)
+    if (endDate) params.append('end_date', endDate)
+    const { data } = await apiClient.get(`/sprint-metrics/dashboard?${params.toString()}`)
+    return data
+  },
+
+  async getTTFVDistribution() {
+    const { data } = await apiClient.get('/sprint-metrics/ttfv-distribution')
+    return data
+  },
+
+  async getCompletionRate(startDate?: string, endDate?: string) {
+    const params = new URLSearchParams()
+    if (startDate) params.append('start_date', startDate)
+    if (endDate) params.append('end_date', endDate)
+    const { data } = await apiClient.get(`/sprint-metrics/completion-rate?${params.toString()}`)
     return data
   },
 

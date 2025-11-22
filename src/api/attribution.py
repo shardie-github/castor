@@ -2,16 +2,22 @@
 Attribution API Routes
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Response
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 from datetime import datetime
+import uuid
+import logging
 
 from src.attribution import AttributionEngine, AttributionModelType
 from src.tenants.tenant_isolation import get_current_tenant
-from fastapi import Request
+from src.database import PostgresConnection
+from src.analytics.analytics_store import AnalyticsStore, AttributionEvent
+from src.telemetry.metrics import MetricsCollector
+from src.telemetry.events import EventLogger
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 class AttributionRequest(BaseModel):
@@ -35,6 +41,36 @@ class AttributionResponse(BaseModel):
 
 def get_attribution_engine(request: Request) -> AttributionEngine:
     return request.app.state.attribution_engine
+
+
+def get_postgres_conn(request: Request) -> PostgresConnection:
+    """Get PostgreSQL connection from app state"""
+    return request.app.state.postgres_conn
+
+
+def get_metrics_collector(request: Request) -> MetricsCollector:
+    """Get metrics collector from app state"""
+    return request.app.state.metrics_collector
+
+
+def get_event_logger(request: Request) -> EventLogger:
+    """Get event logger from app state"""
+    return request.app.state.event_logger
+
+
+def get_analytics_store(
+    request: Request,
+    metrics: MetricsCollector = Depends(get_metrics_collector),
+    postgres_conn: PostgresConnection = Depends(get_postgres_conn)
+) -> AnalyticsStore:
+    """Get analytics store instance"""
+    from src.database import TimescaleConnection
+    timescale_conn = request.app.state.timescale_conn if hasattr(request.app.state, 'timescale_conn') else None
+    return AnalyticsStore(
+        metrics_collector=metrics,
+        timescale_conn=timescale_conn,
+        postgres_conn=postgres_conn
+    )
 
 
 @router.post("/calculate", response_model=AttributionResponse)
@@ -131,3 +167,118 @@ async def compare_models(
             for mt, r in results.items()
         }
     }
+
+
+class AttributionEventRequest(BaseModel):
+    """Request model for attribution events from pixel"""
+    event_type: str  # impression, click, conversion
+    campaign_id: str
+    promo_code: Optional[str] = None
+    timestamp: Optional[str] = None
+    page_url: Optional[str] = None
+    referrer: Optional[str] = None
+    user_agent: Optional[str] = None
+    utm_source: Optional[str] = None
+    utm_medium: Optional[str] = None
+    utm_campaign: Optional[str] = None
+    utm_content: Optional[str] = None
+    utm_term: Optional[str] = None
+    link_url: Optional[str] = None
+    link_text: Optional[str] = None
+    conversion_type: Optional[str] = None
+    conversion_value: Optional[float] = None
+    metadata: Optional[Dict[str, Any]] = None
+
+
+@router.post("/events", status_code=status.HTTP_201_CREATED)
+async def record_attribution_event(
+    event_data: AttributionEventRequest,
+    request: Request,
+    postgres_conn: PostgresConnection = Depends(get_postgres_conn),
+    analytics_store: AnalyticsStore = Depends(get_analytics_store),
+    event_logger: EventLogger = Depends(get_event_logger)
+):
+    """
+    Record an attribution event from the tracking pixel.
+    This endpoint is called by the attribution.js script.
+    """
+    try:
+        # Validate campaign exists
+        campaign = await postgres_conn.fetchrow(
+            """
+            SELECT c.campaign_id, c.podcast_id, c.start_date, c.end_date
+            FROM campaigns c
+            WHERE c.campaign_id = $1
+            """,
+            event_data.campaign_id
+        )
+        
+        if not campaign:
+            logger.warning(f"Campaign not found: {event_data.campaign_id}")
+            return Response(status_code=status.HTTP_404_NOT_FOUND)
+        
+        # Parse timestamp
+        event_timestamp = datetime.utcnow()
+        if event_data.timestamp:
+            try:
+                event_timestamp = datetime.fromisoformat(event_data.timestamp.replace('Z', '+00:00'))
+            except Exception:
+                pass
+        
+        # Create attribution event
+        attribution_event = AttributionEvent(
+            event_id=str(uuid.uuid4()),
+            timestamp=event_timestamp,
+            campaign_id=event_data.campaign_id,
+            podcast_id=str(campaign['podcast_id']),
+            episode_id=None,  # Would need to extract from metadata
+            attribution_method='promo_code' if event_data.promo_code else 'utm',
+            conversion_value=event_data.conversion_value,
+            conversion_type=event_data.conversion_type if event_data.event_type == 'conversion' else None,
+            user_id=None  # Anonymous tracking
+        )
+        
+        # Store event in analytics store
+        await analytics_store.store_attribution_event(attribution_event)
+        
+        # Store additional metadata in database if needed
+        await postgres_conn.execute(
+            """
+            INSERT INTO attribution_event_metadata 
+            (event_id, page_url, referrer, user_agent, utm_source, utm_medium, utm_campaign, metadata)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            ON CONFLICT (event_id) DO NOTHING
+            """,
+            attribution_event.event_id,
+            event_data.page_url,
+            event_data.referrer,
+            event_data.user_agent,
+            event_data.utm_source,
+            event_data.utm_medium,
+            event_data.utm_campaign,
+            event_data.metadata or {}
+        )
+        
+        # Log event
+        await event_logger.log_event(
+            event_type=f'attribution.{event_data.event_type}',
+            user_id=None,
+            properties={
+                'campaign_id': event_data.campaign_id,
+                'event_id': attribution_event.event_id,
+                'promo_code': event_data.promo_code,
+                'conversion_type': event_data.conversion_type,
+                'conversion_value': event_data.conversion_value
+            }
+        )
+        
+        return {
+            "success": True,
+            "event_id": attribution_event.event_id,
+            "timestamp": event_timestamp.isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to record attribution event: {e}", exc_info=True)
+        # Return 200 to prevent pixel retries, but log the error
+        return Response(status_code=status.HTTP_200_OK)

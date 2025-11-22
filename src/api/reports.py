@@ -153,9 +153,25 @@ async def generate_report(
         properties={
             'report_id': report.report_id,
             'campaign_id': report.campaign_id,
-            'report_type': report.report_type.value
+            'report_type': report.report_type.value,
+            'timestamp': datetime.utcnow().isoformat()
         }
     )
+    
+    # Update campaign status to 'completed' when report is generated
+    try:
+        await postgres_conn.execute(
+            """
+            UPDATE campaigns 
+            SET status = 'completed', updated_at = NOW()
+            WHERE campaign_id = $1
+            """,
+            report.campaign_id
+        )
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(f"Failed to update campaign status: {e}")
     
     return ReportResponse(
         report_id=report.report_id,
