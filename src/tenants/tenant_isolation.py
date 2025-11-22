@@ -14,7 +14,7 @@ from src.tenants.tenant_manager import TenantManager
 logger = logging.getLogger(__name__)
 
 
-def get_current_tenant(request: Request) -> Optional[str]:
+async def get_current_tenant(request: Request) -> Optional[str]:
     """
     Extract tenant ID from request
     
@@ -68,7 +68,7 @@ class TenantIsolationMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         """Process request with tenant isolation"""
         # Extract tenant ID
-        tenant_id = get_current_tenant(request)
+        tenant_id = await get_current_tenant(request)
         
         if not tenant_id:
             # Allow public endpoints (health check, etc.)

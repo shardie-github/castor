@@ -109,6 +109,15 @@ jobs:
           REDIS_URL: redis://localhost:6379
           JWT_SECRET: test_secret_key_min_32_chars_long_for_ci
           ENCRYPTION_KEY: test_encryption_key_min_32_chars_long_for_ci
+          SKIP_ENV_VALIDATION: "true"
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: 5432
+          POSTGRES_DATABASE: test_db
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+          ENVIRONMENT: test
         run: |
           pytest tests/unit/ tests/integration/ -v --cov=src --cov-report=xml --cov-report=term --cov-fail-under=50
       
