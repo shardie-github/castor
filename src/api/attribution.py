@@ -15,6 +15,7 @@ from src.database import PostgresConnection
 from src.analytics.analytics_store import AnalyticsStore, AttributionEvent
 from src.telemetry.metrics import MetricsCollector
 from src.telemetry.events import EventLogger
+from src.api.auth import get_current_user
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -188,6 +189,69 @@ class AttributionEventRequest(BaseModel):
     conversion_type: Optional[str] = None
     conversion_value: Optional[float] = None
     metadata: Optional[Dict[str, Any]] = None
+
+
+@router.get("/events/{campaign_id}", response_model=List[Dict[str, Any]])
+async def get_attribution_events(
+    campaign_id: str,
+    current_user: dict = Depends(get_current_user),
+    postgres_conn: PostgresConnection = Depends(get_postgres_conn),
+    analytics_store: AnalyticsStore = Depends(get_analytics_store),
+    limit: int = 100,
+    offset: int = 0
+):
+    """Get attribution events for a campaign"""
+    # Verify campaign ownership
+    campaign = await postgres_conn.fetchrow(
+        """
+        SELECT c.campaign_id FROM campaigns c
+        JOIN podcasts p ON c.podcast_id = p.podcast_id
+        WHERE c.campaign_id = $1 AND p.user_id = $2
+        """,
+        campaign_id,
+        current_user['user_id']
+    )
+    
+    if not campaign:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Campaign not found"
+        )
+    
+    # Get attribution events
+    events = await analytics_store.get_attribution_events(campaign_id)
+    
+    # Convert to dict format for API response
+    events_data = []
+    for event in events[offset:offset + limit]:
+        # Get metadata if available
+        metadata = await postgres_conn.fetchrow(
+            """
+            SELECT page_url, referrer, user_agent, utm_source, utm_medium, utm_campaign
+            FROM attribution_event_metadata
+            WHERE event_id = $1
+            """,
+            event.event_id
+        )
+        
+        event_dict = {
+            "event_id": str(event.event_id),
+            "campaign_id": event.campaign_id,
+            "event_type": event.event_type,
+            "timestamp": event.timestamp.isoformat(),
+            "promo_code": event.promo_code,
+            "conversion_type": event.conversion_type,
+            "conversion_value": event.conversion_value,
+            "attribution_method": event.attribution_method,
+            "page_url": metadata.get("page_url") if metadata else None,
+            "referrer": metadata.get("referrer") if metadata else None,
+            "utm_source": metadata.get("utm_source") if metadata else None,
+            "utm_medium": metadata.get("utm_medium") if metadata else None,
+            "utm_campaign": metadata.get("utm_campaign") if metadata else None,
+        }
+        events_data.append(event_dict)
+    
+    return events_data
 
 
 @router.post("/events", status_code=status.HTTP_201_CREATED)

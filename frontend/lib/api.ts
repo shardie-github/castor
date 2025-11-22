@@ -103,4 +103,22 @@ export const api = {
     })
     return data
   },
+
+  async getReports(campaignId?: string) {
+    const url = campaignId ? `/reports?campaign_id=${campaignId}` : '/reports'
+    const { data } = await apiClient.get(url)
+    return data
+  },
+
+  // Attribution Events
+  async getAttributionEvents(campaignId: string) {
+    const { data } = await apiClient.get(`/attribution/events/${campaignId}`)
+    return data
+  },
+
+  // Monitoring
+  async getMonitoringMetrics(timeRange: '1h' | '24h' | '7d' = '24h') {
+    const { data } = await apiClient.get(`/monitoring/metrics?time_range=${timeRange}`)
+    return data
+  },
 }

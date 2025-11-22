@@ -543,6 +543,58 @@ class AnalyticsStore:
                 "count": 0
             }
     
+    async def get_metrics(
+        self,
+        campaign_id: Optional[str] = None,
+        podcast_id: Optional[str] = None,
+        episode_id: Optional[str] = None,
+        start_date: datetime = None,
+        end_date: datetime = None,
+        metric_types: Optional[List[str]] = None,
+        group_by: Optional[List[str]] = None
+    ) -> List[ListenerMetric]:
+        """
+        Get metrics with flexible querying.
+        This is a wrapper around get_listener_metrics for the analytics API.
+        """
+        if not podcast_id and campaign_id:
+            # Get podcast_id from campaign
+            if self._use_postgres and self.postgres:
+                try:
+                    podcast = await self.postgres.fetchval(
+                        "SELECT podcast_id FROM campaigns WHERE campaign_id = $1",
+                        campaign_id
+                    )
+                    if podcast:
+                        podcast_id = str(podcast)
+                except Exception:
+                    pass
+        
+        if not podcast_id:
+            return []
+        
+        # Default to downloads if no metric types specified
+        if not metric_types:
+            metric_types = [MetricType.DOWNLOADS.value]
+        
+        all_metrics = []
+        for metric_type_str in metric_types:
+            try:
+                metric_type = MetricType(metric_type_str)
+                metrics = await self.get_listener_metrics(
+                    podcast_id=podcast_id,
+                    metric_type=metric_type,
+                    start_date=start_date or datetime.utcnow() - timedelta(days=30),
+                    end_date=end_date or datetime.utcnow(),
+                    episode_id=episode_id
+                )
+                all_metrics.extend(metrics)
+            except ValueError:
+                logger.warning(f"Unknown metric type: {metric_type_str}")
+                continue
+        
+        return all_metrics
+    
     async def calculate_completion_rate(self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None) -> float:
         """
         Calculate campaign completion rate.
