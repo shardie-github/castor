@@ -167,14 +167,29 @@ python manage.py runserver
 ### Development
 
 ```bash
-# Run tests
-pytest
+# Install dependencies
+make install
 
-# Run linter
-flake8 src/
+# Run all CI checks locally
+make ci
 
-# Run type checker
-mypy src/
+# Run individual checks
+make lint          # Lint backend and frontend
+make type-check    # Type check backend and frontend
+make test          # Run tests
+make build         # Build backend and frontend
+
+# Format code
+make format
+```
+
+#### Pre-commit Hooks
+
+Install pre-commit hooks for automatic linting and formatting:
+
+```bash
+pip install pre-commit
+pre-commit install
 ```
 
 ## Project Structure
