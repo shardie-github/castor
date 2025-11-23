@@ -1,34 +1,49 @@
 ---
 name: Bug Report
-about: Create a report to help us improve
+about: Report a bug or unexpected behavior
 title: '[BUG] '
 labels: bug
 assignees: ''
 ---
 
-## Description
-A clear and concise description of what the bug is.
+## Bug Description
+<!-- A clear and concise description of what the bug is -->
 
 ## Steps to Reproduce
-1. Go to '...'
-2. Click on '....'
-3. Scroll down to '....'
-4. See error
+1. 
+2. 
+3. 
+4. 
 
 ## Expected Behavior
-A clear and concise description of what you expected to happen.
+<!-- What you expected to happen -->
 
 ## Actual Behavior
-What actually happened instead.
+<!-- What actually happened -->
 
 ## Environment
-- OS: [e.g. macOS 13.0]
-- Python Version: [e.g. 3.11.0]
-- Node Version: [e.g. 20.0.0]
-- Browser (if applicable): [e.g. Chrome 120]
+- **OS**: <!-- e.g., macOS 13.0, Ubuntu 22.04, Windows 11 -->
+- **Python Version**: <!-- e.g., 3.11.0 -->
+- **Node Version**: <!-- e.g., 20.0.0 -->
+- **Browser** (if applicable): <!-- e.g., Chrome 120 -->
+- **Environment**: <!-- development/staging/production -->
+
+## Error Messages / Logs
+```
+<!-- Paste error messages or relevant log output here -->
+```
+
+## Screenshots
+<!-- If applicable, add screenshots to help explain the problem -->
 
 ## Additional Context
-Add any other context, screenshots, or error messages about the problem here.
+<!-- Any other context about the problem -->
 
 ## Possible Solution
-If you have ideas on how to fix this, share them here!
+<!-- If you have ideas on how to fix this, describe them here -->
+
+## Priority
+- [ ] Critical - System is down or data loss
+- [ ] High - Major functionality broken
+- [ ] Medium - Minor functionality broken
+- [ ] Low - Cosmetic issue
