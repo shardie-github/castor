@@ -202,3 +202,62 @@ groups:
         annotations:
           summary: "Slow attribution event processing"
           description: "95th percentile processing time is {{ $value }}s"
+
+  - name: external_services_alerts
+    interval: 30s
+    rules:
+      # Stripe API failures
+      - alert: StripeAPIFailure
+        expr: stripe_api_errors_total > 10
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Stripe API failures detected"
+          description: "{{ $value }} Stripe API errors in the last 5 minutes"
+
+      # SendGrid API failures
+      - alert: SendGridAPIFailure
+        expr: sendgrid_api_errors_total > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "SendGrid API failures detected"
+          description: "{{ $value }} SendGrid API errors in the last 5 minutes"
+
+      # Supabase connection issues
+      - alert: SupabaseConnectionIssue
+        expr: supabase_connection_errors_total > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Supabase connection issues"
+          description: "{{ $value }} Supabase connection errors"
+
+  - name: feature_flag_alerts
+    interval: 1m
+    rules:
+      # Feature flag service unavailable
+      - alert: FeatureFlagServiceUnavailable
+        expr: feature_flag_service_available == 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Feature flag service unavailable"
+          description: "Feature flag service is not responding"
+
+  - name: migration_alerts
+    interval: 5m
+    rules:
+      # Pending migrations
+      - alert: PendingMigrations
+        expr: pending_migrations_count > 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Pending database migrations"
+          description: "{{ $value }} migrations are pending"
