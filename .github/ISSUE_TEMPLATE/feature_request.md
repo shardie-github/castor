@@ -1,22 +1,32 @@
 ---
 name: Feature Request
-about: Suggest an idea for this project
+about: Suggest a new feature or enhancement
 title: '[FEATURE] '
 labels: enhancement
 assignees: ''
 ---
 
-## Problem
-What problem does this feature solve? What pain point does it address?
+## Feature Description
+<!-- A clear and concise description of the feature you'd like to see -->
+
+## Problem Statement
+<!-- What problem does this feature solve? What pain point does it address? -->
 
 ## Proposed Solution
-Describe the feature you'd like to see. Be as detailed as possible.
+<!-- Describe how you envision this feature working -->
 
 ## Alternatives Considered
-What other approaches did you consider? Why is this solution better?
+<!-- Describe any alternative solutions or features you've considered -->
 
-## Use Case
-Describe a specific scenario where this feature would be valuable.
+## Use Cases
+<!-- Provide specific examples of how this feature would be used -->
 
 ## Additional Context
-Add any other context, mockups, or examples about the feature request here.
+<!-- Add any other context, mockups, or examples about the feature request -->
+
+## Priority
+<!-- How important is this feature to you? -->
+- [ ] Critical - Blocks my work
+- [ ] High - Important for my use case
+- [ ] Medium - Nice to have
+- [ ] Low - Minor improvement

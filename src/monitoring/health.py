@@ -53,9 +53,10 @@ class HealthCheckService:
     - Service dependencies
     """
     
-    def __init__(self, metrics_collector: MetricsCollector, postgres_conn=None):
+    def __init__(self, metrics_collector: MetricsCollector, postgres_conn=None, redis_conn=None):
         self.metrics = metrics_collector
         self.postgres_conn = postgres_conn
+        self.redis_conn = redis_conn
         self.schema_validator = SchemaValidator(postgres_conn) if postgres_conn else None
     
     async def check_health(self) -> SystemHealthStatus:
@@ -102,25 +103,39 @@ class HealthCheckService:
     async def _check_database(self) -> HealthCheck:
         """Check database connectivity"""
         import time
-        import asyncio
         start_time = time.time()
         
         try:
-            # In production, this would actually check database connection
-            # For now, simulate check
-            await asyncio.sleep(0.01)  # Simulate DB query
+            if not self.postgres_conn:
+                return HealthCheck(
+                    name="database",
+                    status=HealthStatus.DEGRADED,
+                    message="Database connection not configured",
+                    latency_ms=0
+                )
             
+            # Actually check database connection
+            is_healthy = await self.postgres_conn.health_check()
             latency_ms = (time.time() - start_time) * 1000
             
-            return HealthCheck(
-                name="database",
-                status=HealthStatus.HEALTHY,
-                message="Database connection successful",
-                latency_ms=latency_ms
-            )
+            if is_healthy:
+                return HealthCheck(
+                    name="database",
+                    status=HealthStatus.HEALTHY,
+                    message="Database connection successful",
+                    latency_ms=latency_ms
+                )
+            else:
+                return HealthCheck(
+                    name="database",
+                    status=HealthStatus.UNHEALTHY,
+                    message="Database health check failed",
+                    latency_ms=latency_ms
+                )
             
         except Exception as e:
             latency_ms = (time.time() - start_time) * 1000
+            logger.error(f"Database health check error: {e}", exc_info=True)
             return HealthCheck(
                 name="database",
                 status=HealthStatus.UNHEALTHY,
@@ -131,24 +146,53 @@ class HealthCheckService:
     async def _check_cache(self) -> HealthCheck:
         """Check cache connectivity"""
         import time
-        import asyncio
         start_time = time.time()
         
         try:
-            # In production, this would check Redis connection
-            await asyncio.sleep(0.01)  # Simulate cache check
+            # Check if Redis connection is available from app state
+            # This will be injected via dependency injection
+            redis_conn = getattr(self, 'redis_conn', None)
             
-            latency_ms = (time.time() - start_time) * 1000
+            if not redis_conn:
+                # Cache is optional, so degraded status is acceptable
+                return HealthCheck(
+                    name="cache",
+                    status=HealthStatus.DEGRADED,
+                    message="Cache connection not configured",
+                    latency_ms=0
+                )
             
-            return HealthCheck(
-                name="cache",
-                status=HealthStatus.HEALTHY,
-                message="Cache connection successful",
-                latency_ms=latency_ms
-            )
+            # Actually check Redis connection
+            try:
+                is_healthy = await redis_conn.health_check()
+                latency_ms = (time.time() - start_time) * 1000
+                
+                if is_healthy:
+                    return HealthCheck(
+                        name="cache",
+                        status=HealthStatus.HEALTHY,
+                        message="Cache connection successful",
+                        latency_ms=latency_ms
+                    )
+                else:
+                    return HealthCheck(
+                        name="cache",
+                        status=HealthStatus.DEGRADED,  # Cache failure is degraded, not unhealthy
+                        message="Cache health check failed",
+                        latency_ms=latency_ms
+                    )
+            except Exception as ping_error:
+                latency_ms = (time.time() - start_time) * 1000
+                return HealthCheck(
+                    name="cache",
+                    status=HealthStatus.DEGRADED,  # Cache failure is degraded, not unhealthy
+                    message=f"Cache ping failed: {str(ping_error)}",
+                    latency_ms=latency_ms
+                )
             
         except Exception as e:
             latency_ms = (time.time() - start_time) * 1000
+            logger.warning(f"Cache health check error: {e}", exc_info=True)
             return HealthCheck(
                 name="cache",
                 status=HealthStatus.DEGRADED,  # Cache failure is degraded, not unhealthy

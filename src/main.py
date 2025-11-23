@@ -21,6 +21,7 @@ from src.telemetry.events import EventLogger
 from src.telemetry.structured_logging import StructuredLogger, LogLevel
 from src.telemetry.tracing import setup_tracing
 from src.monitoring.health import HealthCheckService
+from src.utils.error_handler import register_error_handlers
 
 # Multi-tenant and advanced features
 from src.tenants import TenantManager, TenantIsolationMiddleware
@@ -354,9 +355,13 @@ async def lifespan(app: FastAPI):
     await timescale_conn.initialize()
     await redis_conn.initialize()
     
-    # Initialize health check service with database connection
+    # Initialize health check service with database connections
     global health_service
-    health_service = HealthCheckService(metrics_collector, postgres_conn=postgres_conn)
+    health_service = HealthCheckService(
+        metrics_collector,
+        postgres_conn=postgres_conn,
+        redis_conn=redis_conn
+    )
     
     # Initialize event logger
     await event_logger.initialize()
@@ -562,6 +567,9 @@ app = FastAPI(
         {"name": "business", "description": "Business analytics and insights"},
     ]
 )
+
+# Register error handlers
+register_error_handlers(app)
 
 # Security middleware (replaces basic CORS)
 from src.security.middleware import setup_security_middleware
