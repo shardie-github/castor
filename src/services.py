@@ -11,6 +11,7 @@ from src.config.settings import get_settings
 from src.database import PostgresConnection, TimescaleConnection, RedisConnection
 from src.telemetry.metrics import MetricsCollector
 from src.telemetry.events import EventLogger
+from src.cache.cache_manager import CacheManager
 
 
 async def initialize_services() -> Dict[str, Any]:
@@ -33,7 +34,9 @@ async def initialize_services() -> Dict[str, Any]:
         port=settings.database.postgres_port,
         database=settings.database.postgres_database,
         user=settings.database.postgres_user,
-        password=settings.database.postgres_password
+        password=settings.database.postgres_password,
+        read_replica_host=os.getenv("POSTGRES_READ_REPLICA_HOST"),
+        read_replica_port=int(os.getenv("POSTGRES_READ_REPLICA_PORT", "0")) or None
     )
     
     timescale_conn = TimescaleConnection(
@@ -58,6 +61,9 @@ async def initialize_services() -> Dict[str, Any]:
     # Initialize event logger
     await event_logger.initialize()
     
+    # Initialize cache manager with Redis client
+    cache_manager = CacheManager(redis_client=redis_conn.client)
+    
     # Initialize other services (lazy imports to avoid circular dependencies)
     services = {
         "metrics_collector": metrics_collector,
@@ -65,6 +71,7 @@ async def initialize_services() -> Dict[str, Any]:
         "postgres_conn": postgres_conn,
         "timescale_conn": timescale_conn,
         "redis_conn": redis_conn,
+        "cache_manager": cache_manager,
     }
     
     # Initialize advanced services (optional, can be added as needed)

@@ -8,8 +8,36 @@ import logging
 from typing import Dict, Any, Optional, List
 from enum import Enum
 from abc import ABC, abstractmethod
+from src.utils.circuit_breaker import (
+    CircuitBreaker,
+    CircuitBreakerConfig,
+    CircuitBreakerOpen,
+    get_circuit_breaker
+)
 
 logger = logging.getLogger(__name__)
+
+# Circuit breakers for AI providers
+_ai_circuit_breakers = {
+    "openai": get_circuit_breaker(
+        "openai",
+        CircuitBreakerConfig(
+            failure_threshold=5,
+            success_threshold=2,
+            timeout_seconds=60.0,
+            expected_exception=Exception
+        )
+    ),
+    "anthropic": get_circuit_breaker(
+        "anthropic",
+        CircuitBreakerConfig(
+            failure_threshold=5,
+            success_threshold=2,
+            timeout_seconds=60.0,
+            expected_exception=Exception
+        )
+    ),
+}
 
 
 class AIProvider(Enum):
@@ -125,13 +153,20 @@ class AIFramework:
                 logger.warning("No AI providers configured")
     
     async def generate_text(self, prompt: str, provider: Optional[AIProvider] = None, **kwargs) -> str:
-        """Generate text using specified or primary provider"""
+        """Generate text using specified or primary provider with circuit breaker"""
         provider = provider or self.primary_provider
         
         if provider not in self.providers:
             raise ValueError(f"Provider {provider} not available")
         
-        return await self.providers[provider].generate_text(prompt, **kwargs)
+        # Get circuit breaker for provider
+        breaker = _ai_circuit_breakers.get(provider.value)
+        if breaker:
+            async def _call_provider():
+                return await self.providers[provider].generate_text(prompt, **kwargs)
+            return await breaker.call(_call_provider)
+        else:
+            return await self.providers[provider].generate_text(prompt, **kwargs)
     
     async def analyze_sentiment(self, text: str, provider: Optional[AIProvider] = None) -> Dict[str, Any]:
         """Analyze sentiment"""

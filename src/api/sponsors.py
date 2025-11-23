@@ -112,11 +112,27 @@ async def create_sponsor(
 @router.get("/sponsors", response_model=List[SponsorResponse])
 async def list_sponsors(
     current_user: dict = Depends(get_current_user),
+    request: Request = None,
     postgres_conn: PostgresConnection = Depends(get_postgres_conn),
     skip: int = 0,
     limit: int = 100
 ):
-    """List all sponsors for the current user"""
+    """List all sponsors for the current user (cached for 5 minutes)"""
+    from src.cache.cache_manager import CacheManager
+    
+    # Get cache manager from app state
+    cache_manager = getattr(request.app.state, 'cache_manager', None) if request else None
+    
+    # Generate cache key
+    cache_key = f"sponsors:user:{current_user['user_id']}:skip:{skip}:limit:{limit}"
+    
+    # Try cache first
+    if cache_manager:
+        cached_result = await cache_manager.get(cache_key)
+        if cached_result is not None:
+            return cached_result
+    
+    # Cache miss - query database
     query = """
         SELECT sponsor_id, user_id, name, company, email, contact_name,
                phone, website, logo_url, notes, created_at, updated_at
@@ -126,8 +142,14 @@ async def list_sponsors(
         LIMIT $2 OFFSET $3
     """
     
-    results = await postgres_conn.fetch(query, current_user['user_id'], limit, skip)
-    return [SponsorResponse(**dict(row)) for row in results]
+    results = await postgres_conn.fetch(query, current_user['user_id'], limit, skip, use_read_replica=True)
+    sponsors = [SponsorResponse(**dict(row)) for row in results]
+    
+    # Cache result
+    if cache_manager:
+        await cache_manager.set(cache_key, sponsors, ttl_seconds=300)  # 5 minutes
+    
+    return sponsors
 
 
 @router.get("/sponsors/{sponsor_id}", response_model=SponsorResponse)

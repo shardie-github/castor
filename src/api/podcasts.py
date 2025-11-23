@@ -125,11 +125,27 @@ async def create_podcast(
 @router.get("/podcasts", response_model=List[PodcastResponse])
 async def list_podcasts(
     current_user: dict = Depends(get_current_user),
+    request: Request = None,
     postgres_conn: PostgresConnection = Depends(get_postgres_conn),
     skip: int = 0,
     limit: int = 100
 ):
-    """List all podcasts for the current user"""
+    """List all podcasts for the current user (cached for 5 minutes)"""
+    from src.cache.cache_manager import CacheManager
+    
+    # Get cache manager from app state
+    cache_manager = getattr(request.app.state, 'cache_manager', None) if request else None
+    
+    # Generate cache key
+    cache_key = f"podcasts:user:{current_user['user_id']}:skip:{skip}:limit:{limit}"
+    
+    # Try cache first
+    if cache_manager:
+        cached_result = await cache_manager.get(cache_key)
+        if cached_result is not None:
+            return cached_result
+    
+    # Cache miss - query database
     query = """
         SELECT podcast_id, user_id, title, description, author, image_url,
                feed_url, website_url, language, category, explicit,
@@ -140,8 +156,14 @@ async def list_podcasts(
         LIMIT $2 OFFSET $3
     """
     
-    results = await postgres_conn.fetch(query, current_user['user_id'], limit, skip)
-    return [PodcastResponse(**dict(row)) for row in results]
+    results = await postgres_conn.fetch(query, current_user['user_id'], limit, skip, use_read_replica=True)
+    podcasts = [PodcastResponse(**dict(row)) for row in results]
+    
+    # Cache result
+    if cache_manager:
+        await cache_manager.set(cache_key, podcasts, ttl_seconds=300)  # 5 minutes
+    
+    return podcasts
 
 
 @router.get("/podcasts/{podcast_id}", response_model=PodcastResponse)

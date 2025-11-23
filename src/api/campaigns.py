@@ -500,6 +500,16 @@ async def get_campaign_analytics(
             postgres_conn=postgres_conn
         )
     
+    # Check cache first
+    from src.cache.cache_manager import CacheManager
+    cache_manager = getattr(request.app.state, 'cache_manager', None) if request else None
+    cache_key = f"campaign:analytics:{campaign_id}"
+    
+    if cache_manager:
+        cached_result = await cache_manager.get(cache_key)
+        if cached_result is not None:
+            return cached_result
+    
     # Get campaign performance from analytics store
     try:
         performance = await analytics_store.calculate_campaign_performance(
@@ -514,7 +524,7 @@ async def get_campaign_analytics(
         if campaign.get('campaign_value') and campaign['campaign_value'] > 0:
             roi = ((performance.conversion_value - campaign['campaign_value']) / campaign['campaign_value']) * 100
         
-        return {
+        result = {
             "campaign_id": campaign_id,
             "impressions": performance.total_downloads + performance.total_streams,
             "clicks": performance.attribution_events,
@@ -526,6 +536,12 @@ async def get_campaign_analytics(
             "total_listeners": performance.total_listeners,
             "attribution_events": performance.attribution_events
         }
+        
+        # Cache result (1 minute TTL for analytics)
+        if cache_manager:
+            await cache_manager.set(cache_key, result, ttl_seconds=60)
+        
+        return result
     except Exception as e:
         # Fallback to basic query if analytics store fails
         import logging
