@@ -12,6 +12,7 @@ from datetime import datetime, timedelta
 import hashlib
 import secrets
 import jwt
+import os
 from passlib.context import CryptContext
 
 from src.database import PostgresConnection
@@ -250,13 +251,40 @@ async def register(
     # Record metrics
     metrics.increment_counter('user_registrations_total')
     
-    # TODO: Send verification email
+    # Send verification email
+    try:
+        from src.email.email_service import EmailService, EmailTemplate
+        email_service = EmailService(
+            metrics_collector=metrics,
+            event_logger=event_logger
+        )
+        
+        verification_url = f"{os.getenv('NEXT_PUBLIC_SITE_URL', 'http://localhost:3000')}/auth/verify-email?token={verification_token}"
+        await email_service.send_email(
+            to_email=user_data.email,
+            template=EmailTemplate.VERIFICATION,
+            context={
+                'name': user_data.name,
+                'verification_url': verification_url
+            }
+        )
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(f"Failed to send verification email: {e}")
+        # Continue execution - email sending failure shouldn't block registration
     
-    return {
+    # In development, return token for testing. In production, remove this.
+    response_data = {
         "message": "Registration successful. Please check your email to verify your account.",
-        "user_id": str(user_id),
-        "verification_token": verification_token  # Remove in production, use email
+        "user_id": str(user_id)
     }
+    
+    # Only include token in development mode
+    if os.getenv("ENVIRONMENT", "development") == "development":
+        response_data["verification_token"] = verification_token
+    
+    return response_data
 
 
 @router.post("/login", response_model=AuthResponse)
@@ -442,14 +470,40 @@ async def request_password_reset(
         datetime.utcnow() + timedelta(hours=1)
     )
     
-    # TODO: Send password reset email
+    # Send password reset email
+    try:
+        from src.email.email_service import EmailService, EmailTemplate
+        email_service = EmailService(
+            metrics_collector=metrics,
+            event_logger=request.app.state.event_logger if hasattr(request.app.state, 'event_logger') else None
+        )
+        
+        reset_url = f"{os.getenv('NEXT_PUBLIC_SITE_URL', 'http://localhost:3000')}/auth/reset-password?token={reset_token}"
+        await email_service.send_email(
+            to_email=reset_request.email,
+            template=EmailTemplate.PASSWORD_RESET,
+            context={
+                'reset_url': reset_url
+            }
+        )
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(f"Failed to send password reset email: {e}")
+        # Continue execution - email sending failure shouldn't block reset request
     
     metrics.increment_counter('password_reset_requests_total')
     
-    return {
-        "message": "If the email exists, a password reset link has been sent",
-        "reset_token": reset_token  # Remove in production, use email
+    # In development, return token for testing. In production, remove this.
+    response_data = {
+        "message": "If the email exists, a password reset link has been sent"
     }
+    
+    # Only include token in development mode
+    if os.getenv("ENVIRONMENT", "development") == "development":
+        response_data["reset_token"] = reset_token
+    
+    return response_data
 
 
 @router.post("/reset-password")

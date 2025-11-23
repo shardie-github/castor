@@ -49,14 +49,34 @@ export default function NewCampaignPage() {
       }
 
       // Load podcasts
-      // TODO: Implement podcasts API endpoint
-      // For now, use placeholder
-      setPodcasts([])
+      const podcastsResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/podcasts`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      })
+      
+      if (podcastsResponse.ok) {
+        const podcastsData = await podcastsResponse.json()
+        setPodcasts(podcastsData || [])
+      } else {
+        console.warn('Failed to load podcasts:', podcastsResponse.statusText)
+        setPodcasts([])
+      }
 
       // Load sponsors
-      // TODO: Implement sponsors API endpoint
-      // For now, use placeholder
-      setSponsors([])
+      const sponsorsResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/sponsors`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      })
+      
+      if (sponsorsResponse.ok) {
+        const sponsorsData = await sponsorsResponse.json()
+        setSponsors(sponsorsData || [])
+      } else {
+        console.warn('Failed to load sponsors:', sponsorsResponse.statusText)
+        setSponsors([])
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to load data')
     } finally {
