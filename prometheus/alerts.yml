@@ -1,0 +1,204 @@
+# Prometheus Alerting Rules
+# These rules define when alerts should fire based on metrics
+
+groups:
+  - name: api_alerts
+    interval: 30s
+    rules:
+      # High error rate
+      - alert: HighErrorRate
+        expr: rate(api_errors_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High API error rate detected"
+          description: "Error rate is {{ $value }} errors/second over the last 5 minutes"
+
+      # High latency
+      - alert: HighLatency
+        expr: histogram_quantile(0.95, rate(api_request_duration_seconds_bucket[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High API latency detected"
+          description: "95th percentile latency is {{ $value }}s"
+
+      # Low request rate (possible outage)
+      - alert: LowRequestRate
+        expr: rate(api_requests_total[5m]) < 1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low API request rate"
+          description: "Request rate is {{ $value }} requests/second"
+
+  - name: database_alerts
+    interval: 30s
+    rules:
+      # Database connection failures
+      - alert: DatabaseConnectionFailure
+        expr: up{job="postgres"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Database connection failure"
+          description: "Cannot connect to PostgreSQL database"
+
+      # High database connection count
+      - alert: HighDatabaseConnections
+        expr: pg_stat_database_numbackends > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High database connection count"
+          description: "{{ $value }} active database connections"
+
+      # Slow queries
+      - alert: SlowQueries
+        expr: pg_stat_statements_mean_exec_time > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Slow database queries detected"
+          description: "Average query time is {{ $value }}s"
+
+  - name: cache_alerts
+    interval: 30s
+    rules:
+      # Redis connection failure
+      - alert: RedisConnectionFailure
+        expr: up{job="redis"} == 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Redis connection failure"
+          description: "Cannot connect to Redis cache"
+
+      # High Redis memory usage
+      - alert: HighRedisMemoryUsage
+        expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High Redis memory usage"
+          description: "Redis memory usage is {{ $value | humanizePercentage }}"
+
+  - name: health_check_alerts
+    interval: 30s
+    rules:
+      # Unhealthy service
+      - alert: ServiceUnhealthy
+        expr: health_check_status{status="unhealthy"} == 1
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service is unhealthy"
+          description: "Health check reports unhealthy status"
+
+      # Degraded service
+      - alert: ServiceDegraded
+        expr: health_check_status{status="degraded"} == 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Service is degraded"
+          description: "Health check reports degraded status"
+
+  - name: resource_alerts
+    interval: 30s
+    rules:
+      # High CPU usage
+      - alert: HighCPUUsage
+        expr: rate(process_cpu_seconds_total[5m]) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage"
+          description: "CPU usage is {{ $value | humanizePercentage }}"
+
+      # High memory usage
+      - alert: HighMemoryUsage
+        expr: process_resident_memory_bytes / process_virtual_memory_bytes > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage"
+          description: "Memory usage is {{ $value | humanizePercentage }}"
+
+      # Disk space low
+      - alert: LowDiskSpace
+        expr: (node_filesystem_avail_bytes / node_filesystem_size_bytes) < 0.1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Low disk space"
+          description: "Disk space is {{ $value | humanizePercentage }}"
+
+  - name: security_alerts
+    interval: 30s
+    rules:
+      # Rate limit exceeded frequently
+      - alert: FrequentRateLimitExceeded
+        expr: rate(rate_limit_exceeded_total[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Frequent rate limit violations"
+          description: "{{ $value }} rate limit violations per second"
+
+      # WAF blocks
+      - alert: FrequentWAFBlocks
+        expr: rate(waf_blocked_total[5m]) > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Frequent WAF blocks"
+          description: "{{ $value }} WAF blocks per second - possible attack"
+
+      # Authentication failures
+      - alert: HighAuthFailures
+        expr: rate(auth_failures_total[5m]) > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High authentication failure rate"
+          description: "{{ $value }} auth failures per second - possible brute force"
+
+  - name: business_alerts
+    interval: 1m
+    rules:
+      # Low campaign creation rate
+      - alert: LowCampaignCreationRate
+        expr: rate(campaigns_created_total[1h]) < 0.1
+        for: 1h
+        labels:
+          severity: info
+        annotations:
+          summary: "Low campaign creation rate"
+          description: "Only {{ $value }} campaigns created per hour"
+
+      # High attribution event processing time
+      - alert: SlowAttributionProcessing
+        expr: histogram_quantile(0.95, rate(attribution_processing_duration_seconds_bucket[5m])) > 10
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Slow attribution event processing"
+          description: "95th percentile processing time is {{ $value }}s"

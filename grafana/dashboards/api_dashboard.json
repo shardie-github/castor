@@ -1,0 +1,73 @@
+{
+  "dashboard": {
+    "title": "API Performance Dashboard",
+    "tags": ["api", "performance"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Request Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(api_requests_total[5m])",
+            "legendFormat": "{{method}} {{endpoint}}"
+          }
+        ],
+        "yaxes": [
+          {
+            "label": "Requests/sec",
+            "format": "reqps"
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Error Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(api_errors_total[5m])",
+            "legendFormat": "{{method}} {{endpoint}}"
+          }
+        ],
+        "yaxes": [
+          {
+            "label": "Errors/sec",
+            "format": "reqps"
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "Response Time (95th percentile)",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(api_request_duration_seconds_bucket[5m]))",
+            "legendFormat": "{{endpoint}}"
+          }
+        ],
+        "yaxes": [
+          {
+            "label": "Seconds",
+            "format": "s"
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Status Code Distribution",
+        "type": "piechart",
+        "targets": [
+          {
+            "expr": "sum by (status_code) (rate(api_requests_total[5m]))"
+          }
+        ]
+      }
+    ],
+    "refresh": "30s",
+    "schemaVersion": 16,
+    "version": 1
+  }
+}
