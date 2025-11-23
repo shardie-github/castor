@@ -360,7 +360,8 @@ async def lifespan(app: FastAPI):
     health_service = HealthCheckService(
         metrics_collector,
         postgres_conn=postgres_conn,
-        redis_conn=redis_conn
+        redis_conn=redis_conn,
+        timescale_conn=timescale_conn
     )
     
     # Initialize event logger

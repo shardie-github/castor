@@ -128,6 +128,56 @@ class EnvironmentSettings(BaseSettings):
         allow_population_by_field_name = True
 
 
+def validate_production_env() -> None:
+    """
+    Validate required production environment variables.
+    
+    Raises:
+        ValueError: If production environment validation fails
+    """
+    env = os.getenv("ENVIRONMENT", "development")
+    if env != "production":
+        return
+    
+    required_vars = {
+        "JWT_SECRET": (32, "JWT secret must be at least 32 characters"),
+        "ENCRYPTION_KEY": (32, "Encryption key must be at least 32 characters"),
+    }
+    
+    # Critical services that should be configured in production
+    recommended_vars = {
+        "SUPABASE_SERVICE_ROLE_KEY": "Supabase service role key recommended for production",
+        "STRIPE_SECRET_KEY": "Stripe secret key recommended for production",
+    }
+    
+    errors = []
+    warnings = []
+    
+    # Check required variables
+    for var_name, (min_len, error_msg) in required_vars.items():
+        value = os.getenv(var_name)
+        if not value or len(value) < min_len:
+            errors.append(f"{var_name}: {error_msg}")
+        # Check for default values
+        if value and value in ["change-me-in-production", "change-me-in-production-generate-random-secret", "change-me-in-production-generate-random-key"]:
+            errors.append(f"{var_name}: Must be changed from default value")
+    
+    # Check recommended variables
+    for var_name, warning_msg in recommended_vars.items():
+        value = os.getenv(var_name)
+        if not value:
+            warnings.append(f"{var_name}: {warning_msg}")
+    
+    if errors:
+        raise ValueError("Production environment validation failed:\n" + "\n".join(errors))
+    
+    if warnings:
+        import logging
+        logger = logging.getLogger(__name__)
+        for warning in warnings:
+            logger.warning(f"Production warning: {warning}")
+
+
 def load_and_validate_env() -> EnvironmentSettings:
     """
     Load and validate environment variables.
@@ -138,6 +188,19 @@ def load_and_validate_env() -> EnvironmentSettings:
     Returns:
         EnvironmentSettings: Validated environment settings
     """
+    # Validate production environment first
+    try:
+        validate_production_env()
+    except ValueError as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        env = os.getenv("ENVIRONMENT", "development")
+        if env == "production":
+            logger.critical(str(e))
+            raise
+        else:
+            logger.warning(f"Environment validation warning: {e}")
+    
     try:
         # Parse database settings
         database = DatabaseSettings(
