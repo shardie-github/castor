@@ -14,6 +14,8 @@ from src.telemetry.metrics import MetricsCollector
 from src.telemetry.events import EventLogger
 from src.api.auth import get_current_user
 from src.campaigns.campaign_manager import CampaignManager, CampaignStatus, AttributionConfig, AttributionMethod
+from src.services.campaign_service import CampaignService
+from src.utils.error_responses import NotFoundError, ValidationError
 
 router = APIRouter()
 
@@ -84,17 +86,56 @@ def get_campaign_manager(
     )
 
 
+def get_campaign_service(
+    request: Request,
+    postgres_conn: PostgresConnection = Depends(get_postgres_conn),
+    metrics: MetricsCollector = Depends(get_metrics_collector),
+    event_logger: EventLogger = Depends(get_event_logger)
+) -> CampaignService:
+    """Get campaign service instance"""
+    return CampaignService(
+        postgres_conn=postgres_conn,
+        metrics_collector=metrics,
+        event_logger=event_logger
+    )
+
+
 # API Endpoints
 @router.post("/campaigns", response_model=CampaignResponse, status_code=status.HTTP_201_CREATED)
 async def create_campaign(
     campaign_data: CampaignCreate,
     current_user: dict = Depends(get_current_user),
     request: Request = None,
+    campaign_service: CampaignService = Depends(get_campaign_service),
     campaign_manager: CampaignManager = Depends(get_campaign_manager),
     postgres_conn: PostgresConnection = Depends(get_postgres_conn),
     event_logger: EventLogger = Depends(get_event_logger)
 ):
     """Create a new campaign"""
+    # Get tenant_id from user or request state
+    tenant_id = current_user.get('tenant_id') or getattr(request.state, 'tenant_id', None)
+    user_id = current_user.get('user_id')
+    
+    if not tenant_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Tenant ID required"
+        )
+    
+    # Use service layer
+    try:
+        campaign = await campaign_service.create_campaign(
+            tenant_id=tenant_id,
+            user_id=user_id,
+            campaign_data=campaign_data.dict()
+        )
+        return CampaignResponse(**campaign)
+    except NotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except ValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    
+    # Legacy code below (keeping for reference)
     # Verify podcast belongs to user
     podcast = await postgres_conn.fetchrow(
         "SELECT podcast_id FROM podcasts WHERE podcast_id = $1 AND user_id = $2",

@@ -1,0 +1,52 @@
+name: Test Migrations
+
+on:
+  pull_request:
+    paths:
+      - 'migrations/**'
+      - 'scripts/validate_migrations.py'
+  workflow_dispatch:
+
+jobs:
+  test-migrations:
+    name: Test Database Migrations
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_migrations
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+      
+      - name: Validate migration files
+        run: |
+          python scripts/validate_migrations.py --migrations-dir migrations
+      
+      - name: Test migrations against database
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_migrations
+        run: |
+          python scripts/validate_migrations.py \
+            --migrations-dir migrations \
+            --database-url $DATABASE_URL \
+            --fail-on-warnings

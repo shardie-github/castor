@@ -53,10 +53,11 @@ class HealthCheckService:
     - Service dependencies
     """
     
-    def __init__(self, metrics_collector: MetricsCollector, postgres_conn=None, redis_conn=None):
+    def __init__(self, metrics_collector: MetricsCollector, postgres_conn=None, redis_conn=None, timescale_conn=None):
         self.metrics = metrics_collector
         self.postgres_conn = postgres_conn
         self.redis_conn = redis_conn
+        self.timescale_conn = timescale_conn
         self.schema_validator = SchemaValidator(postgres_conn) if postgres_conn else None
     
     async def check_health(self) -> SystemHealthStatus:
@@ -81,6 +82,10 @@ class HealthCheckService:
         if self.schema_validator:
             schema_check = await self._check_schema()
             checks.append(schema_check)
+        
+        # TimescaleDB check (if available)
+        timescale_check = await self._check_timescaledb()
+        checks.append(timescale_check)
         
         # Determine overall status
         overall_status = self._determine_overall_status(checks)
@@ -203,19 +208,79 @@ class HealthCheckService:
     async def _check_external_apis(self) -> HealthCheck:
         """Check external API availability"""
         import time
+        import os
+        import httpx
         start_time = time.time()
         
         try:
-            # Check critical external APIs
-            # In production, would check actual API endpoints
+            api_statuses = {}
+            
+            # Check Stripe API (if configured)
+            stripe_key = os.getenv("STRIPE_SECRET_KEY")
+            if stripe_key:
+                try:
+                    async with httpx.AsyncClient(timeout=5.0) as client:
+                        # Stripe health check endpoint
+                        response = await client.get(
+                            "https://api.stripe.com/v1/charges",
+                            headers={"Authorization": f"Bearer {stripe_key}"},
+                            params={"limit": 1}
+                        )
+                        api_statuses["stripe"] = response.status_code < 500
+                except Exception:
+                    api_statuses["stripe"] = False
+            
+            # Check SendGrid API (if configured)
+            sendgrid_key = os.getenv("SENDGRID_API_KEY")
+            if sendgrid_key:
+                try:
+                    async with httpx.AsyncClient(timeout=5.0) as client:
+                        response = await client.get(
+                            "https://api.sendgrid.com/v3/user/profile",
+                            headers={"Authorization": f"Bearer {sendgrid_key}"}
+                        )
+                        api_statuses["sendgrid"] = response.status_code < 500
+                except Exception:
+                    api_statuses["sendgrid"] = False
+            
+            # Check Supabase (if configured)
+            supabase_url = os.getenv("SUPABASE_URL")
+            if supabase_url:
+                try:
+                    async with httpx.AsyncClient(timeout=5.0) as client:
+                        response = await client.get(f"{supabase_url}/rest/v1/")
+                        api_statuses["supabase"] = response.status_code < 500
+                except Exception:
+                    api_statuses["supabase"] = False
             
             latency_ms = (time.time() - start_time) * 1000
             
+            # Determine status
+            if not api_statuses:
+                return HealthCheck(
+                    name="external_apis",
+                    status=HealthStatus.HEALTHY,
+                    message="No external APIs configured",
+                    latency_ms=latency_ms
+                )
+            
+            unhealthy_count = sum(1 for status in api_statuses.values() if not status)
+            if unhealthy_count == 0:
+                status_val = HealthStatus.HEALTHY
+                message = "All external APIs available"
+            elif unhealthy_count < len(api_statuses):
+                status_val = HealthStatus.DEGRADED
+                message = f"Some external APIs unavailable ({unhealthy_count}/{len(api_statuses)})"
+            else:
+                status_val = HealthStatus.UNHEALTHY
+                message = "All external APIs unavailable"
+            
             return HealthCheck(
                 name="external_apis",
-                status=HealthStatus.HEALTHY,
-                message="External APIs available",
-                latency_ms=latency_ms
+                status=status_val,
+                message=message,
+                latency_ms=latency_ms,
+                metadata={"api_statuses": api_statuses}
             )
             
         except Exception as e:
@@ -223,7 +288,7 @@ class HealthCheckService:
             return HealthCheck(
                 name="external_apis",
                 status=HealthStatus.DEGRADED,
-                message=f"Some external APIs unavailable: {str(e)}",
+                message=f"External API check failed: {str(e)}",
                 latency_ms=latency_ms
             )
     
@@ -274,6 +339,62 @@ class HealthCheckService:
                 name="schema",
                 status=HealthStatus.DEGRADED,
                 message=f"Schema validation failed: {str(e)}",
+                latency_ms=latency_ms
+            )
+    
+    async def _check_timescaledb(self) -> HealthCheck:
+        """Check TimescaleDB hypertables"""
+        import time
+        start_time = time.time()
+        
+        try:
+            if not self.timescale_conn:
+                return HealthCheck(
+                    name="timescaledb",
+                    status=HealthStatus.DEGRADED,
+                    message="TimescaleDB connection not configured",
+                    latency_ms=0
+                )
+            
+            # Check if TimescaleDB extension is available
+            query = """
+                SELECT COUNT(*) as count
+                FROM pg_extension
+                WHERE extname = 'timescaledb';
+            """
+            result = await self.timescale_conn.fetchval(query)
+            latency_ms = (time.time() - start_time) * 1000
+            
+            if result and result > 0:
+                # Check hypertables
+                hypertable_query = """
+                    SELECT COUNT(*) as count
+                    FROM _timescaledb_catalog.hypertable;
+                """
+                hypertable_count = await self.timescale_conn.fetchval(hypertable_query)
+                
+                return HealthCheck(
+                    name="timescaledb",
+                    status=HealthStatus.HEALTHY,
+                    message=f"TimescaleDB extension active ({hypertable_count} hypertables)",
+                    latency_ms=latency_ms,
+                    metadata={"hypertable_count": hypertable_count}
+                )
+            else:
+                return HealthCheck(
+                    name="timescaledb",
+                    status=HealthStatus.DEGRADED,
+                    message="TimescaleDB extension not installed",
+                    latency_ms=latency_ms
+                )
+                
+        except Exception as e:
+            latency_ms = (time.time() - start_time) * 1000
+            logger.warning(f"TimescaleDB health check error: {e}", exc_info=True)
+            return HealthCheck(
+                name="timescaledb",
+                status=HealthStatus.DEGRADED,
+                message=f"TimescaleDB check failed: {str(e)}",
                 latency_ms=latency_ms
             )
     

@@ -1,0 +1,109 @@
+version: '3.8'
+
+services:
+  postgres-staging:
+    image: timescale/timescaledb:latest-pg15
+    container_name: podcast_analytics_postgres_staging
+    environment:
+      POSTGRES_DB: podcast_analytics_staging
+      POSTGRES_USER: staging_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-staging_password_change_me}
+    ports:
+      - "5433:5432"  # Different port to avoid conflicts
+    volumes:
+      - postgres_staging_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U staging_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - staging-network
+
+  redis-staging:
+    image: redis:7-alpine
+    container_name: podcast_analytics_redis_staging
+    ports:
+      - "6380:6379"  # Different port
+    volumes:
+      - redis_staging_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - staging-network
+
+  api-staging:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    container_name: podcast_analytics_api_staging
+    environment:
+      - ENVIRONMENT=staging
+      - POSTGRES_HOST=postgres-staging
+      - POSTGRES_PORT=5432
+      - POSTGRES_DATABASE=podcast_analytics_staging
+      - POSTGRES_USER=staging_user
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-staging_password_change_me}
+      - REDIS_HOST=redis-staging
+      - REDIS_PORT=6379
+    env_file:
+      - .env.staging
+    ports:
+      - "8001:8000"  # Different port
+    depends_on:
+      postgres-staging:
+        condition: service_healthy
+      redis-staging:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - staging-network
+
+  prometheus-staging:
+    image: prom/prometheus:latest
+    container_name: podcast_analytics_prometheus_staging
+    ports:
+      - "9091:9090"  # Different port
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_staging_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    networks:
+      - staging-network
+
+  grafana-staging:
+    image: grafana/grafana:latest
+    container_name: podcast_analytics_grafana_staging
+    ports:
+      - "3001:3000"  # Different port
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=staging_admin_password
+      - GF_INSTALL_PLUGINS=
+    volumes:
+      - grafana_staging_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+    depends_on:
+      - prometheus-staging
+    networks:
+      - staging-network
+
+volumes:
+  postgres_staging_data:
+  redis_staging_data:
+  prometheus_staging_data:
+  grafana_staging_data:
+
+networks:
+  staging-network:
+    driver: bridge

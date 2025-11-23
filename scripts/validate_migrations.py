@@ -131,6 +131,35 @@ class MigrationValidator:
             self.errors.append(f"Database connection error: {e}")
             return False
     
+    async def test_migration_up_down(self, database_url: str, migration_file: Path) -> Tuple[bool, List[str]]:
+        """Test migration up and down"""
+        errors = []
+        
+        try:
+            conn = await asyncpg.connect(database_url)
+            
+            # Read migration SQL
+            migration_sql = migration_file.read_text()
+            
+            # Try to execute migration (in transaction, rollback on error)
+            async with conn.transaction():
+                try:
+                    await conn.execute(migration_sql)
+                    # If rollback script exists, test it
+                    rollback_file = migration_file.parent / migration_file.name.replace('.sql', '_rollback.sql')
+                    if rollback_file.exists():
+                        rollback_sql = rollback_file.read_text()
+                        await conn.execute(rollback_sql)
+                except Exception as e:
+                    errors.append(f"Migration execution failed for {migration_file.name}: {e}")
+            
+            await conn.close()
+            return len(errors) == 0, errors
+            
+        except Exception as e:
+            errors.append(f"Migration test error for {migration_file.name}: {e}")
+            return False, errors
+    
     def validate(self, database_url: str = None) -> Tuple[bool, List[str], List[str]]:
         """Run all validations"""
         self.validate_migration_files()
