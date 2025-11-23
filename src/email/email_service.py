@@ -14,8 +14,26 @@ from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail, Email, To, Content
 from src.telemetry.metrics import MetricsCollector
 from src.telemetry.events import EventLogger
+from src.utils.circuit_breaker import (
+    CircuitBreaker,
+    CircuitBreakerConfig,
+    CircuitBreakerOpen,
+    get_circuit_breaker
+)
+from src.utils.retry import retry_with_backoff, RETRY_CONFIGS
 
 logger = logging.getLogger(__name__)
+
+# Circuit breaker for SendGrid API
+_sendgrid_circuit_breaker = get_circuit_breaker(
+    "sendgrid",
+    CircuitBreakerConfig(
+        failure_threshold=5,
+        success_threshold=2,
+        timeout_seconds=60.0,
+        expected_exception=Exception
+    )
+)
 
 
 class EmailProvider(Enum):
@@ -150,29 +168,39 @@ class EmailService:
         subject: Optional[str] = None,
         body: Optional[str] = None
     ) -> bool:
-        """Send an email"""
+        """Send an email with circuit breaker and retry logic"""
         try:
             if not self.client:
                 logger.error("Email client not initialized")
                 return False
             
-            email_subject, email_body = self._get_template_content(template, context)
+            # Use circuit breaker to protect against cascading failures
+            async def _send():
+                email_subject, email_body = self._get_template_content(template, context)
+                
+                if subject:
+                    email_subject = subject
+                if body:
+                    email_body = body
+                
+                message = Mail(
+                    from_email=Email(self.from_email),
+                    to_emails=To(to_email),
+                    subject=email_subject,
+                    html_content=Content("text/html", email_body)
+                )
+                
+                response = self.client.send(message)
+                
+                if response.status_code not in [200, 202]:
+                    raise Exception(f"SendGrid API returned status {response.status_code}")
+                
+                return True
             
-            if subject:
-                email_subject = subject
-            if body:
-                email_body = body
-            
-            message = Mail(
-                from_email=Email(self.from_email),
-                to_emails=To(to_email),
-                subject=email_subject,
-                html_content=Content("text/html", email_body)
-            )
-            
-            response = self.client.send(message)
-            
-            if response.status_code in [200, 202]:
+            # Execute with circuit breaker and retry
+            try:
+                result = await _sendgrid_circuit_breaker.call(_send)
+                
                 if self.metrics:
                     self.metrics.increment_counter(
                         "emails_sent_total",
@@ -184,13 +212,14 @@ class EmailService:
                         user_id=None,
                         properties={"to": to_email, "template": template.value}
                     )
-                return True
-            else:
-                logger.error(f"Failed to send email: {response.status_code}")
+                return result
+                
+            except CircuitBreakerOpen as e:
+                logger.error(f"Circuit breaker open for SendGrid: {e}")
                 if self.metrics:
                     self.metrics.increment_counter(
                         "emails_sent_total",
-                        tags={"template": template.value, "status": "error"}
+                        tags={"template": template.value, "status": "circuit_open"}
                     )
                 return False
                 

@@ -14,11 +14,28 @@ from dataclasses import dataclass
 from src.telemetry.metrics import MetricsCollector
 from src.telemetry.events import EventLogger
 from src.config import config
+from src.utils.circuit_breaker import (
+    CircuitBreaker,
+    CircuitBreakerConfig,
+    CircuitBreakerOpen,
+    get_circuit_breaker
+)
 
 logger = logging.getLogger(__name__)
 
 # Initialize Stripe (will be set when processor is created)
 stripe.api_key = config.stripe_secret_key or os.getenv("STRIPE_SECRET_KEY", "")
+
+# Circuit breaker for Stripe API
+_stripe_circuit_breaker = get_circuit_breaker(
+    "stripe",
+    CircuitBreakerConfig(
+        failure_threshold=5,
+        success_threshold=2,
+        timeout_seconds=60.0,
+        expected_exception=Exception
+    )
+)
 
 
 @dataclass
@@ -69,13 +86,17 @@ class StripePaymentProcessor:
         name: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
-        """Create a Stripe customer"""
-        try:
+        """Create a Stripe customer with circuit breaker protection"""
+        async def _create():
             customer = stripe.Customer.create(
                 email=email,
                 name=name,
                 metadata=metadata or {}
             )
+            return customer
+        
+        try:
+            customer = await _stripe_circuit_breaker.call(_create)
             
             # Record telemetry
             self.metrics.increment_counter(
@@ -94,6 +115,14 @@ class StripePaymentProcessor:
             )
             
             return customer
+            
+        except CircuitBreakerOpen as e:
+            logger.error(f"Circuit breaker open for Stripe: {e}")
+            self.metrics.increment_counter(
+                "stripe_customer_created",
+                tags={"email": email, "status": "circuit_open"}
+            )
+            raise
             
         except stripe.error.StripeError as e:
             logger.error(f"Stripe error creating customer: {e}")
