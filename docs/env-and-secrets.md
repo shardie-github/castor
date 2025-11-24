@@ -217,29 +217,33 @@ DEBUG=true
 
 **Location:** GitHub Repository Secrets
 
-**Required Secrets:**
+**Required Secrets (Frontend Deployment):**
+- `VERCEL_TOKEN` - **REQUIRED** - Vercel API token (get from Vercel Dashboard → Settings → Tokens)
+- `VERCEL_ORG_ID` - **Recommended** - Vercel organization ID (get from Vercel Dashboard → Settings → General → Team ID)
+- `VERCEL_PROJECT_ID` - **Recommended** - Vercel project ID (get from Vercel Dashboard → Project Settings → General → Project ID)
+- `NEXT_PUBLIC_API_URL` - Backend API URL for frontend builds
+- `NEXT_PUBLIC_SUPABASE_URL` - Supabase URL for frontend (if using Supabase)
+- `SUPABASE_ANON_KEY` - Supabase anonymous key (if using Supabase)
+- `NEXT_PUBLIC_SITE_URL` - Site URL for frontend builds
+
+**Required Secrets (Backend Deployment):**
 - `PRODUCTION_DATABASE_URL` - Production database connection string
 - `STAGING_DATABASE_URL` - Staging database connection string
 - `PRODUCTION_REDIS_URL` - Production Redis connection string
 - `STAGING_REDIS_URL` - Staging Redis connection string
 - `JWT_SECRET` - JWT secret (same for staging/production or separate)
 - `ENCRYPTION_KEY` - Encryption key (same for staging/production or separate)
-- `VERCEL_TOKEN` - Vercel API token (for frontend deployment)
-- `VERCEL_ORG_ID` - Vercel organization ID (optional)
-- `VERCEL_PROJECT_ID` - Vercel project ID (optional)
 
 **Optional Secrets:**
 - `SUPABASE_URL` - Supabase project URL
 - `SUPABASE_SERVICE_ROLE_KEY` - Supabase service role key
-- `NEXT_PUBLIC_SUPABASE_URL` - Supabase URL for frontend
-- `SUPABASE_ANON_KEY` - Supabase anonymous key
-- `NEXT_PUBLIC_API_URL` - Backend API URL for frontend
-- `NEXT_PUBLIC_SITE_URL` - Site URL for frontend
 - `STRIPE_SECRET_KEY` - Stripe secret key
 - `SENDGRID_API_KEY` - SendGrid API key
 - `CONTAINER_REGISTRY` - Docker registry URL
 - `REGISTRY_USERNAME` - Docker registry username
 - `REGISTRY_PASSWORD` - Docker registry password
+
+**Note:** Workflow will fail with clear error if `VERCEL_TOKEN` is missing. See `docs/vercel-troubleshooting.md` for setup instructions.
 
 ---
 

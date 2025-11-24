@@ -3,14 +3,11 @@ name: Frontend CI & Deploy
 on:
   pull_request:
     branches: [main, develop]
-    paths:
-      - 'frontend/**'
-      - '.github/workflows/frontend-ci-deploy.yml'
+    # Path filters removed to ensure workflow runs on all PRs
+    # This ensures Preview deployments are created even when changes are outside frontend/
   push:
     branches: [main, develop]
-    paths:
-      - 'frontend/**'
-      - '.github/workflows/frontend-ci-deploy.yml'
+    # Path filters removed to ensure workflow runs on all pushes to main/develop
   workflow_dispatch:
 
 env:
@@ -62,7 +59,7 @@ jobs:
     if: github.event_name == 'pull_request'
     concurrency:
       group: frontend-deploy-${{ github.head_ref }}
-      cancel-in-progress: false
+      cancel-in-progress: true
     steps:
       - uses: actions/checkout@v4
       
@@ -76,6 +73,24 @@ jobs:
       - name: Install Vercel CLI
         run: npm install -g vercel@latest
       
+      - name: Validate Vercel Secrets
+        run: |
+          if [ -z "${{ secrets.VERCEL_TOKEN }}" ]; then
+            echo "::error::VERCEL_TOKEN secret is not set. Please configure it in GitHub Secrets."
+            exit 1
+          fi
+          echo "✓ VERCEL_TOKEN is set"
+          if [ -n "${{ secrets.VERCEL_ORG_ID }}" ]; then
+            echo "✓ VERCEL_ORG_ID is set"
+          else
+            echo "::warning::VERCEL_ORG_ID is not set. Deployment may fail if project is not linked."
+          fi
+          if [ -n "${{ secrets.VERCEL_PROJECT_ID }}" ]; then
+            echo "✓ VERCEL_PROJECT_ID is set"
+          else
+            echo "::warning::VERCEL_PROJECT_ID is not set. Deployment may fail if project is not linked."
+          fi
+      
       - name: Pull Vercel Environment Variables
         working-directory: ./frontend
         env:
@@ -83,9 +98,20 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         run: |
-          if [ -n "$VERCEL_TOKEN" ]; then
-            vercel pull --yes --environment=preview --token=$VERCEL_TOKEN || echo "Vercel pull failed, continuing..."
-          fi
+          vercel pull --yes --environment=preview --token=$VERCEL_TOKEN
+      
+      - name: Install dependencies
+        working-directory: ./frontend
+        run: npm ci
+      
+      - name: Build for Preview
+        working-directory: ./frontend
+        env:
+          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL || 'http://localhost:8000' }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_SITE_URL: ${{ secrets.NEXT_PUBLIC_SITE_URL || 'https://castor.app' }}
+        run: npm run build
       
       - name: Deploy to Vercel Preview
         working-directory: ./frontend
@@ -93,16 +119,8 @@ jobs:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL || 'http://localhost:8000' }}
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-          NEXT_PUBLIC_SITE_URL: ${{ secrets.NEXT_PUBLIC_SITE_URL || 'https://castor.app' }}
         run: |
-          if [ -n "$VERCEL_TOKEN" ]; then
-            vercel deploy --prebuilt --token=$VERCEL_TOKEN || echo "Vercel deployment skipped (no token)"
-          else
-            echo "Vercel token not set, skipping deployment"
-          fi
+          vercel deploy --prebuilt --token=$VERCEL_TOKEN
 
   deploy-production:
     name: Deploy to Production
@@ -112,7 +130,7 @@ jobs:
     environment: production
     concurrency:
       group: frontend-deploy-production
-      cancel-in-progress: false
+      cancel-in-progress: true
     steps:
       - uses: actions/checkout@v4
       
@@ -126,6 +144,28 @@ jobs:
       - name: Install Vercel CLI
         run: npm install -g vercel@latest
       
+      - name: Validate Vercel Secrets
+        run: |
+          if [ -z "${{ secrets.VERCEL_TOKEN }}" ]; then
+            echo "::error::VERCEL_TOKEN secret is not set. Please configure it in GitHub Secrets."
+            exit 1
+          fi
+          echo "✓ VERCEL_TOKEN is set"
+          if [ -n "${{ secrets.VERCEL_ORG_ID }}" ]; then
+            echo "✓ VERCEL_ORG_ID is set"
+          else
+            echo "::warning::VERCEL_ORG_ID is not set. Deployment may fail if project is not linked."
+          fi
+          if [ -n "${{ secrets.VERCEL_PROJECT_ID }}" ]; then
+            echo "✓ VERCEL_PROJECT_ID is set"
+          else
+            echo "::warning::VERCEL_PROJECT_ID is not set. Deployment may fail if project is not linked."
+          fi
+      
+      - name: Install dependencies
+        working-directory: ./frontend
+        run: npm ci
+      
       - name: Pull Vercel Environment Variables
         working-directory: ./frontend
         env:
@@ -133,9 +173,7 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         run: |
-          if [ -n "$VERCEL_TOKEN" ]; then
-            vercel pull --yes --environment=production --token=$VERCEL_TOKEN || echo "Vercel pull failed, continuing..."
-          fi
+          vercel pull --yes --environment=production --token=$VERCEL_TOKEN
       
       - name: Build for Production
         working-directory: ./frontend
@@ -152,13 +190,5 @@ jobs:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-          NEXT_PUBLIC_SITE_URL: ${{ secrets.NEXT_PUBLIC_SITE_URL }}
         run: |
-          if [ -n "$VERCEL_TOKEN" ]; then
-            vercel deploy --prebuilt --prod --token=$VERCEL_TOKEN || echo "Vercel deployment failed"
-          else
-            echo "Vercel token not set, skipping deployment"
-          fi
+          vercel deploy --prebuilt --prod --token=$VERCEL_TOKEN
