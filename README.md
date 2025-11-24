@@ -113,6 +113,7 @@ Content analysis, anomaly detection, and predictive analytics help you understan
 - PostgreSQL 15+ (with TimescaleDB extension for time-series data)
 - Redis 7+
 - Node.js 20+ (for frontend)
+- PostgreSQL client tools (`psql`) for migrations
 
 ### Installation
 
@@ -126,10 +127,13 @@ pip install -r requirements.txt
 
 # Set up environment variables
 cp .env.example .env
-# Edit .env with your configuration
+# Edit .env with your configuration (see Database Setup below)
+
+# Start local database (using Docker Compose)
+docker-compose up -d postgres redis
 
 # Run database migrations
-python scripts/migrate.py
+./scripts/db-migrate-local.sh
 
 # Start the backend API
 uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
@@ -139,6 +143,62 @@ cd frontend
 npm install
 npm run dev
 ```
+
+### Database Setup
+
+#### Local Development
+
+1. **Start PostgreSQL with TimescaleDB**:
+   ```bash
+   docker-compose up -d postgres
+   ```
+
+2. **Apply migrations**:
+   ```bash
+   ./scripts/db-migrate-local.sh
+   ```
+
+   Or manually:
+   ```bash
+   psql postgresql://postgres:postgres@localhost:5432/podcast_analytics \
+     -f db/migrations/99999999999999_master_schema.sql
+   ```
+
+#### Production / Hosted Database
+
+**Recommended: Supabase** (see `docs/backend-options-and-costs.md` for analysis)
+
+1. **Get connection string** from your database provider
+2. **Set environment variable**:
+   ```bash
+   export DATABASE_URL="postgresql://user:password@host:5432/database"
+   ```
+3. **Apply migration**:
+   ```bash
+   ./scripts/db-migrate-hosted.sh
+   ```
+
+**Important**: Always create a backup before applying migrations to production!
+
+For detailed migration instructions, see [`docs/migrations-workflow.md`](docs/migrations-workflow.md).
+
+#### Environment Variables
+
+Configure database connection in `.env`:
+
+```bash
+# Option 1: Use DATABASE_URL (recommended)
+DATABASE_URL=postgresql://user:password@host:5432/database
+
+# Option 2: Use individual variables (for backward compatibility)
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
+POSTGRES_DATABASE=podcast_analytics
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
+```
+
+See [`.env.example`](.env.example) for all available configuration options.
 
 ### Your First 10 Minutes
 
@@ -176,9 +236,18 @@ podcast-analytics-platform/
 │   ├── integration/               # Integration tests
 │   └── e2e/                      # End-to-end tests
 │
-├── migrations/                   # Database migrations
+├── db/                           # Database migrations
+│   └── migrations/               # Master migration file
+│       └── 99999999999999_master_schema.sql
+├── migrations_archive/           # Legacy migrations (archived)
 ├── scripts/                      # Utility scripts
+│   ├── db-migrate-local.sh       # Local migration script
+│   └── db-migrate-hosted.sh      # Hosted migration script
 ├── docs/                         # Additional documentation
+│   ├── backend-discovery.md      # Backend infrastructure discovery
+│   ├── data-model-overview.md    # Database schema overview
+│   ├── backend-options-and-costs.md  # Backend hosting analysis
+│   └── migrations-workflow.md    # Migration workflow guide
 └── README.md                     # This file
 ```
 
@@ -297,6 +366,13 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
 
 ## Documentation
 
+### Database & Backend
+- [Backend Discovery](docs/backend-discovery.md) - Database infrastructure and migration framework
+- [Data Model Overview](docs/data-model-overview.md) - Complete database schema documentation
+- [Backend Options & Costs](docs/backend-options-and-costs.md) - Hosting analysis (Supabase vs alternatives)
+- [Migrations Workflow](docs/migrations-workflow.md) - How to run database migrations
+
+### Platform Documentation
 - [System Architecture](architecture/system-architecture.md) - Detailed architecture diagrams
 - [Pricing Plan](monetization/pricing-plan.md) - Pricing tiers and conversion logic
 - [API Documentation](http://localhost:8000/api/docs) - Interactive API docs (when running locally)
