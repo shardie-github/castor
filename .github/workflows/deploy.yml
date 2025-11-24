@@ -27,19 +27,18 @@ jobs:
         run: |
           pip install -r requirements.txt
       
-      - name: Run Supabase migrations
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+      - name: Install PostgreSQL client
         run: |
-          echo "Running Supabase migrations"
-          # Run migrations via Supabase CLI or direct SQL
-          if [ -f scripts/init_db.py ]; then
-            python scripts/init_db.py || echo "Migration check completed"
-          else
-            echo "Migration script not found, skipping"
-          fi
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+      
+      - name: Run database migrations
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+          SKIP_CONFIRMATION: "true"
+        run: |
+          chmod +x scripts/db-migrate-hosted.sh
+          ./scripts/db-migrate-hosted.sh
       
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3

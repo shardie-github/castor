@@ -366,14 +366,26 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
 
 ## Documentation
 
-### Database & Backend
+### Getting Started
+- [Local Development Guide](docs/local-dev.md) - Set up your local development environment
+- [Stack Discovery](docs/stack-discovery.md) - Complete technology stack overview
+- [Environment Variables & Secrets](docs/env-and-secrets.md) - Environment configuration guide
+
+### Architecture & Strategy
+- [Backend Strategy](docs/backend-strategy.md) - Backend architecture and database hosting
+- [Frontend Hosting Strategy](docs/frontend-hosting-strategy.md) - Frontend deployment and Vercel setup
+- [CI/CD Overview](docs/ci-overview.md) - CI workflows and branch protection
+- [System Architecture](architecture/system-architecture.md) - Detailed architecture diagrams
+
+### Operations
+- [Cost & Limits](docs/cost-and-limits.md) - Hosting costs and usage limits
+- [Demo Script](docs/demo-script.md) - Step-by-step demo guide
+- [Migrations Workflow](docs/migrations-workflow.md) - How to run database migrations
+
+### Additional Documentation
 - [Backend Discovery](docs/backend-discovery.md) - Database infrastructure and migration framework
 - [Data Model Overview](docs/data-model-overview.md) - Complete database schema documentation
 - [Backend Options & Costs](docs/backend-options-and-costs.md) - Hosting analysis (Supabase vs alternatives)
-- [Migrations Workflow](docs/migrations-workflow.md) - How to run database migrations
-
-### Platform Documentation
-- [System Architecture](architecture/system-architecture.md) - Detailed architecture diagrams
 - [Pricing Plan](monetization/pricing-plan.md) - Pricing tiers and conversion logic
 - [API Documentation](http://localhost:8000/api/docs) - Interactive API docs (when running locally)
 - [User Personas](research/user-persona-matrix.md) - Target user profiles

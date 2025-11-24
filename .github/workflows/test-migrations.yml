@@ -38,15 +38,38 @@ jobs:
         run: |
           pip install -r requirements.txt
       
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+      
       - name: Validate migration files
         run: |
-          python scripts/validate_migrations.py --migrations-dir migrations
+          python scripts/validate_migrations.py --migrations-dir db/migrations
       
       - name: Test migrations against database
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_migrations
         run: |
           python scripts/validate_migrations.py \
-            --migrations-dir migrations \
+            --migrations-dir db/migrations \
             --database-url $DATABASE_URL \
             --fail-on-warnings
+      
+      - name: Apply master migration to test database
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_migrations
+        run: |
+          psql "$DATABASE_URL" -f db/migrations/99999999999999_master_schema.sql
+      
+      - name: Verify migration applied
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_migrations
+        run: |
+          psql "$DATABASE_URL" -c "
+            SELECT 
+              COUNT(*) as table_count,
+              COUNT(CASE WHEN table_name IN ('tenants', 'users', 'podcasts', 'episodes', 'campaigns', 'listener_events') THEN 1 END) as key_tables
+            FROM information_schema.tables 
+            WHERE table_schema = 'public' AND table_type = 'BASE TABLE';
+          "
