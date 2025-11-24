@@ -28,16 +28,23 @@
 ### 2. Frontend CI & Deploy (`frontend-ci-deploy.yml`)
 
 **Triggers:**
-- Pull requests (preview deployment)
+- Pull requests to `main` or `develop` (preview deployment)
 - Push to `main` or `develop` (production/staging deployment)
 - Manual dispatch
+- **Note:** Path filters removed to ensure workflow runs on all PRs/pushes
 
 **Jobs:**
 - `build-and-test` - Lint, type-check, test, build
-- `deploy-preview` - Deploy to Vercel preview (PRs)
-- `deploy-production` - Deploy to Vercel production (main branch)
+- `deploy-preview` - Deploy to Vercel preview (PRs only)
+- `deploy-production` - Deploy to Vercel production (main branch pushes only)
 
-**Status:** ✅ Active
+**Features:**
+- Secret validation before deployment
+- Proper Vercel CLI command sequence
+- Concurrency control (cancels in-progress deployments)
+- Clear error messages (no silent failures)
+
+**Status:** ✅ Active and Fixed
 
 ---
 
@@ -218,21 +225,14 @@
 ### Frontend
 
 **Package Manager:** npm  
-**Lockfile:** `frontend/package-lock.json` ✅ Present
+**Lockfile:** `frontend/package-lock.json` ✅ Present (committed)
 
 **Node Version:**
 - CI: Node 20 (pinned in workflows)
-- **Missing:** `engines` field in `package.json`
+- Local: Node 20 (via `frontend/.nvmrc`)
+- package.json: `"node": ">=20.0.0"` ✅ Present
 
-**Action Required:** Add `engines` field to `frontend/package.json`:
-```json
-{
-  "engines": {
-    "node": ">=20.0.0",
-    "npm": ">=9.0.0"
-  }
-}
-```
+**Status:** ✅ All version consistency issues fixed
 
 ### Backend
 
@@ -387,26 +387,30 @@ concurrency:
    - Delete `ci.yml.new`
    - Review `nightly.yml.new` (activate or delete)
 
-2. **Add Node version pinning:**
-   - Add `engines` to `frontend/package.json`
-
-3. **Complete backend deployment:**
+2. **Complete backend deployment:**
    - Replace placeholder steps in `deploy.yml` and `deploy-staging.yml`
 
-4. **Add dependency automation:**
+3. **Add dependency automation:**
    - Configure Dependabot for npm and pip
 
-5. **Branch protection:**
+4. **Branch protection:**
    - Configure required checks for main branch
+
+5. **Configure GitHub Secrets:**
+   - Add `VERCEL_TOKEN` (required)
+   - Add `VERCEL_ORG_ID` (recommended)
+   - Add `VERCEL_PROJECT_ID` (recommended)
+   - Add other env vars (see `docs/env-and-secrets.md`)
 
 ### 📋 Action Items
 
 - [ ] Delete `ci.yml.new`
 - [ ] Review and activate/delete `nightly.yml.new`
-- [ ] Add `engines` to `frontend/package.json`
 - [ ] Create `.github/dependabot.yml`
 - [ ] Configure branch protection rules
 - [ ] Complete backend deployment workflows
+- [ ] Configure GitHub Secrets (VERCEL_TOKEN, etc.)
+- [ ] Link Vercel project (or set VERCEL_PROJECT_ID secret)
 
 ---
 
