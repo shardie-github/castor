@@ -1,0 +1,53 @@
+name: Deploy Backend to Render
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'Dockerfile*'
+      - '.github/workflows/deploy-backend-render.yml'
+
+env:
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  deploy-backend-render:
+    name: Deploy Backend to Render
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'production' || 'staging') }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Install Render CLI
+        run: |
+          curl -fsSL https://render.com/install.sh | bash
+          echo "$HOME/.render/bin" >> $GITHUB_PATH
+      
+      - name: Deploy to Render
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
+          ENVIRONMENT: ${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'production' || 'staging') }}
+        run: |
+          if [ -n "$RENDER_API_KEY" ] && [ -n "$RENDER_SERVICE_ID" ]; then
+            render deploy $RENDER_SERVICE_ID
+          else
+            echo "Render API key or service ID not set, skipping deployment"
+            echo "Set RENDER_API_KEY and RENDER_SERVICE_ID in GitHub Secrets to enable deployment"
+          fi

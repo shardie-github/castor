@@ -1,0 +1,52 @@
+# Fly.io Configuration Example
+# Copy to fly.toml and customize for your app
+
+app = "podcast-analytics-api"
+primary_region = "iad"  # Change to your preferred region
+
+[build]
+  dockerfile = "Dockerfile.prod"
+  docker_build_context = "."
+
+[env]
+  ENVIRONMENT = "production"
+  DEBUG = "false"
+  PYTHONUNBUFFERED = "1"
+
+[[services]]
+  internal_port = 8000
+  protocol = "tcp"
+  processes = ["app"]
+
+  [[services.ports]]
+    port = 80
+    handlers = ["http"]
+    force_https = true
+
+  [[services.ports]]
+    port = 443
+    handlers = ["tls", "http"]
+
+  [services.concurrency]
+    type = "connections"
+    hard_limit = 1000
+    soft_limit = 500
+
+  [[services.http_checks]]
+    interval = "10s"
+    timeout = "2s"
+    grace_period = "5s"
+    method = "GET"
+    path = "/health"
+    protocol = "http"
+
+  [[services.http_checks]]
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "10s"
+    method = "GET"
+    path = "/health"
+    protocol = "http"
+
+[deploy]
+  release_command = "echo 'Deployment started'"

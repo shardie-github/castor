@@ -1,0 +1,21 @@
+# Render Configuration Example
+# Copy to render.yaml and customize for your app
+
+services:
+  - type: web
+    name: podcast-analytics-api
+    env: docker
+    dockerfilePath: ./Dockerfile.prod
+    dockerContext: .
+    plan: starter  # or free, standard, pro
+    region: oregon  # Change to your preferred region
+    branch: main
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: DEBUG
+        value: "false"
+      - key: PYTHONUNBUFFERED
+        value: "1"
+    healthCheckPath: /health
+    autoDeploy: true
