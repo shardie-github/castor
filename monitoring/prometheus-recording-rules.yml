@@ -1,0 +1,54 @@
+groups:
+  - name: api_recording_rules
+    interval: 30s
+    rules:
+      # Request rate (requests per second)
+      - record: api:requests_per_second
+        expr: rate(http_requests_total[5m])
+      
+      # Error rate (errors per second)
+      - record: api:errors_per_second
+        expr: rate(http_requests_total{status=~"5.."}[5m])
+      
+      # Error percentage
+      - record: api:error_percentage
+        expr: |
+          (
+            rate(http_requests_total{status=~"5.."}[5m])
+            /
+            rate(http_requests_total[5m])
+          ) * 100
+      
+      # Response time percentiles
+      - record: api:response_time_p50
+        expr: histogram_quantile(0.50, rate(http_request_duration_seconds_bucket[5m]))
+      
+      - record: api:response_time_p95
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m]))
+      
+      - record: api:response_time_p99
+        expr: histogram_quantile(0.99, rate(http_request_duration_seconds_bucket[5m]))
+      
+      # Database query performance
+      - record: db:query_time_p95
+        expr: histogram_quantile(0.95, rate(database_query_duration_seconds_bucket[5m]))
+      
+      - record: db:slow_queries_per_minute
+        expr: rate(database_slow_queries_total[1m])
+      
+      # Cache performance
+      - record: cache:hit_rate
+        expr: |
+          (
+            rate(cache_hits_total[5m])
+            /
+            (rate(cache_hits_total[5m]) + rate(cache_misses_total[5m]))
+          ) * 100
+      
+      # Active users
+      - record: api:active_users_5m
+        expr: count(count_over_time(active_users[5m]))
+      
+      # Throughput
+      - record: api:throughput_per_minute
+        expr: rate(http_requests_total[1m]) * 60
