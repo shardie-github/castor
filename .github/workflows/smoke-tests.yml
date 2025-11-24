@@ -1,0 +1,58 @@
+name: Smoke Tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to test'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/smoke-tests.yml'
+      - 'tests/smoke/**'
+
+env:
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  smoke-tests:
+    name: Run Smoke Tests
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'staging' }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio httpx
+      
+      - name: Run smoke tests
+        env:
+          API_URL: ${{ secrets.STAGING_API_URL || secrets.PRODUCTION_API_URL || 'http://localhost:8000' }}
+        run: |
+          pytest tests/smoke/test_production_smoke.py -v --asyncio-mode=auto || {
+            echo "Smoke tests failed"
+            exit 1
+          }
+      
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: smoke-test-results
+          path: |
+            pytest-report.html
+            .pytest_cache

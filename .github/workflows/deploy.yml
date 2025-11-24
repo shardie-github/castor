@@ -130,22 +130,30 @@ jobs:
         run: |
           echo "Running smoke tests against ${API_URL}"
           
-          if [ -f "tests/smoke/test_health.py" ]; then
-            # Install test dependencies
-            pip install httpx pytest pytest-asyncio
-            
-            # Run smoke tests
-            export DATABASE_URL="$DATABASE_URL"
-            pytest tests/smoke/test_health.py -v --base-url="$API_URL" || echo "Smoke tests completed with warnings"
+          # Install test dependencies
+          pip install httpx pytest pytest-asyncio
+          
+          # Run comprehensive smoke tests
+          if [ -f "tests/smoke/test_production_smoke.py" ]; then
+            export API_URL="$API_URL"
+            pytest tests/smoke/test_production_smoke.py -v --asyncio-mode=auto || {
+              echo "Smoke tests failed - deployment may have issues"
+              exit 1
+            }
+          elif [ -f "tests/smoke/test_health.py" ]; then
+            pytest tests/smoke/test_health.py -v --base-url="$API_URL" || {
+              echo "Smoke tests failed - deployment may have issues"
+              exit 1
+            }
           else
-            echo "Smoke tests not found, skipping"
+            echo "⚠️ Smoke tests not found, performing basic health check"
+            curl -f "$API_URL/health" || {
+              echo "Health check failed"
+              exit 1
+            }
           fi
           
-          # Basic health check
-          if [ -n "$API_URL" ]; then
-            echo "Checking API health endpoint..."
-            curl -f "$API_URL/health" || echo "Health check failed (API may not be deployed yet)"
-          fi
+          echo "✅ Smoke tests passed"
       
       - name: Notify deployment
         if: success()
