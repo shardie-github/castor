@@ -21,7 +21,7 @@ import asyncio
 class MigrationValidator:
     """Validates database migrations"""
     
-    def __init__(self, migrations_dir: str = "migrations"):
+    def __init__(self, migrations_dir: str = "db/migrations"):
         self.migrations_dir = Path(migrations_dir)
         self.errors: List[str] = []
         self.warnings: List[str] = []
@@ -178,7 +178,7 @@ def main():
     parser = argparse.ArgumentParser(description="Validate database migrations")
     parser.add_argument(
         "--migrations-dir",
-        default="migrations",
+        default="db/migrations",
         help="Path to migrations directory"
     )
     parser.add_argument(

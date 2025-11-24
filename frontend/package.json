@@ -2,6 +2,10 @@
   "name": "podcast-analytics-frontend",
   "version": "1.0.0",
   "private": true,
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=9.0.0"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -10,7 +14,8 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "ci:check": "npm run lint && npm run type-check && npm test -- --watchAll=false && npm run build"
   },
   "dependencies": {
     "next": "^14.0.0",

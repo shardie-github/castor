@@ -1,0 +1,91 @@
+name: Deploy Backend to Kubernetes
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'Dockerfile*'
+      - 'k8s/**'
+      - '.github/workflows/deploy-backend-k8s.yml'
+
+env:
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  deploy-backend-k8s:
+    name: Deploy Backend to Kubernetes
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'production' || 'staging') }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'latest'
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Login to Container Registry
+        if: ${{ secrets.CONTAINER_REGISTRY != '' }}
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.CONTAINER_REGISTRY }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+      
+      - name: Build and push Docker image
+        if: ${{ secrets.CONTAINER_REGISTRY != '' }}
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          dockerfile: Dockerfile.prod
+          push: true
+          tags: ${{ secrets.CONTAINER_REGISTRY }}/podcast-analytics:${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'production' || 'staging') }}-${{ github.sha }}
+          cache-from: type=registry,ref=${{ secrets.CONTAINER_REGISTRY }}/podcast-analytics:cache
+          cache-to: type=registry,ref=${{ secrets.CONTAINER_REGISTRY }}/podcast-analytics:cache,mode=max
+      
+      - name: Configure kubectl
+        env:
+          KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
+        run: |
+          if [ -n "$KUBE_CONFIG" ]; then
+            mkdir -p $HOME/.kube
+            echo "$KUBE_CONFIG" > $HOME/.kube/config
+            chmod 600 $HOME/.kube/config
+          else
+            echo "KUBE_CONFIG not set, skipping Kubernetes deployment"
+            exit 0
+          fi
+      
+      - name: Deploy to Kubernetes
+        env:
+          ENVIRONMENT: ${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'production' || 'staging') }}
+          IMAGE_TAG: ${{ secrets.CONTAINER_REGISTRY }}/podcast-analytics:${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'production' || 'staging') }}-${{ github.sha }}
+        run: |
+          if [ -f "$HOME/.kube/config" ]; then
+            # Update image in deployment
+            sed -i "s|image:.*|image: $IMAGE_TAG|g" k8s/deployment.yaml
+            
+            # Apply deployment
+            kubectl apply -f k8s/deployment.yaml
+            
+            # Wait for rollout
+            kubectl rollout status deployment/podcast-analytics-api -n default --timeout=5m
+            
+            echo "Deployment successful"
+          else
+            echo "Kubernetes config not found, skipping deployment"
+          fi
