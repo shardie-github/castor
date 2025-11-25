@@ -119,10 +119,19 @@ class BusinessAnalytics:
             total_revenue / paying_customers if paying_customers > 0 else 0
         )
         
-        # Calculate LTV (simplified)
-        avg_monthly_revenue = recurring_revenue / max(period_days / 30, 1)
-        avg_customer_lifetime_months = 12  # Simplified assumption
-        lifetime_value = avg_monthly_revenue * avg_customer_lifetime_months
+        # Calculate LTV (improved - uses actual churn data)
+        # Get churn rate from customer metrics
+        customer_metrics = await self.get_customer_metrics(start_date, end_date, tenant_id)
+        monthly_churn_rate = customer_metrics.churn_rate / 100.0  # Convert to decimal
+        
+        # Calculate average customer lifetime (in months)
+        if monthly_churn_rate > 0:
+            avg_customer_lifetime_months = 1 / monthly_churn_rate
+        else:
+            avg_customer_lifetime_months = 24  # Default if no churn data
+        
+        # Calculate LTV: ARPU × Average Customer Lifetime
+        lifetime_value = avg_revenue_per_user * avg_customer_lifetime_months
         
         return RevenueMetrics(
             total_revenue=total_revenue,

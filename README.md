@@ -2,6 +2,8 @@
 
 **Turn your podcast into a revenue-generating machine with enterprise-grade analytics, automated sponsor matching, and real-time attribution tracking.**
 
+> **YC Readiness:** Comprehensive YC application and interview prep materials available in [`/yc/`](yc/README.md) directory.
+
 ---
 
 ## What This Is
@@ -366,16 +368,24 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
 
 ## Documentation
 
+### YC Readiness
+- **[YC Readiness Documentation](yc/README.md)** - Comprehensive YC application and interview prep materials
+- [YC Product Overview](yc/YC_PRODUCT_OVERVIEW.md) - Product narrative for YC application
+- [YC Interview Cheat Sheet](yc/YC_INTERVIEW_CHEATSHEET.md) - Interview prep with answers
+- [YC Gap Analysis](yc/YC_GAP_ANALYSIS.md) - Gaps vs YC expectations
+
 ### Getting Started
 - [Local Development Guide](docs/local-dev.md) - Set up your local development environment
 - [Stack Discovery](docs/stack-discovery.md) - Complete technology stack overview
 - [Environment Variables & Secrets](docs/env-and-secrets.md) - Environment configuration guide
+- [Quick Setup Script](scripts/setup-local.sh) - One-command local setup
 
 ### Architecture & Strategy
 - [Backend Strategy](docs/backend-strategy.md) - Backend architecture and database hosting
 - [Frontend Hosting Strategy](docs/frontend-hosting-strategy.md) - Frontend deployment and Vercel setup
 - [CI/CD Overview](docs/ci-overview.md) - CI workflows and branch protection
 - [System Architecture](architecture/system-architecture.md) - Detailed architecture diagrams
+- [Tech Overview](yc/YC_TECH_OVERVIEW.md) - Technical architecture for YC
 
 ### Operations
 - [Cost & Limits](docs/cost-and-limits.md) - Hosting costs and usage limits
@@ -390,6 +400,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
 - [API Documentation](http://localhost:8000/api/docs) - Interactive API docs (when running locally)
 - [User Personas](research/user-persona-matrix.md) - Target user profiles
 - [Analytics Events](validation/analytics-events.md) - Event tracking reference
+- [Metrics API](http://localhost:8000/api/v1/metrics/dashboard) - Metrics endpoints (when running locally)
 
 ---
 
