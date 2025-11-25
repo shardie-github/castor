@@ -4,10 +4,10 @@ Reports API Routes
 Provides endpoints for report generation and management.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Response, Query
 from pydantic import BaseModel
 from typing import Optional, List
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from enum import Enum
 
 from src.database import PostgresConnection
@@ -347,6 +347,152 @@ async def download_report(
     # For now, return redirect to file URL
     from fastapi.responses import RedirectResponse
     return RedirectResponse(url=result['file_url'])
+
+
+@router.post("/reports/{report_id}/share")
+async def share_report(
+    report_id: str,
+    access_level: str = "public",
+    password: Optional[str] = None,
+    expires_days: Optional[int] = None,
+    current_user: dict = Depends(get_current_user),
+    postgres_conn: PostgresConnection = Depends(get_postgres_conn),
+    event_logger: EventLogger = Depends(get_event_logger)
+):
+    """Create a shareable link for a report"""
+    import secrets
+    from datetime import timedelta
+    
+    # Verify report belongs to user
+    report_query = """
+        SELECT report_id FROM reports
+        WHERE report_id = $1 AND user_id = $2
+    """
+    report = await postgres_conn.fetch_one(report_query, report_id, current_user['user_id'])
+    
+    if not report:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Report not found"
+        )
+    
+    # Generate share token
+    share_token = secrets.token_urlsafe(32)
+    
+    # Calculate expiration
+    expires_at = None
+    if expires_days:
+        expires_at = datetime.now(timezone.utc) + timedelta(days=expires_days)
+    
+    # Hash password if provided
+    password_hash = None
+    if password:
+        from passlib.context import CryptContext
+        pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+        password_hash = pwd_context.hash(password)
+    
+    # Insert shared report
+    insert_query = """
+        INSERT INTO shared_reports (
+            report_id, share_token, access_level, password_hash, expires_at
+        )
+        VALUES ($1, $2, $3, $4, $5)
+        RETURNING share_token
+    """
+    
+    result = await postgres_conn.fetch_one(
+        insert_query,
+        report_id,
+        share_token,
+        access_level,
+        password_hash,
+        expires_at
+    )
+    
+    # Build share URL
+    share_url = f"https://yourapp.com/reports/shared/{share_token}"
+    
+    # Log event
+    await event_logger.log_event(
+        event_type='report_shared',
+        user_id=str(current_user['user_id']),
+        properties={
+            'report_id': report_id,
+            'share_method': 'link',
+            'access_level': access_level
+        }
+    )
+    
+    return {
+        "share_token": share_token,
+        "share_url": share_url,
+        "access_level": access_level,
+        "expires_at": expires_at.isoformat() if expires_at else None
+    }
+
+
+@router.get("/reports/shared/{share_token}")
+async def get_shared_report(
+    share_token: str,
+    password: Optional[str] = None,
+    postgres_conn: PostgresConnection = Depends(get_postgres_conn)
+):
+    """Get a shared report (public access)"""
+    # Find shared report
+    query = """
+        SELECT sr.*, r.file_url, r.format, r.report_type
+        FROM shared_reports sr
+        JOIN reports r ON sr.report_id = r.report_id
+        WHERE sr.share_token = $1
+    """
+    
+    shared = await postgres_conn.fetch_one(query, share_token)
+    
+    if not shared:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Shared report not found"
+        )
+    
+    # Check expiration
+    if shared["expires_at"] and shared["expires_at"] < datetime.now(timezone.utc):
+        raise HTTPException(
+            status_code=status.HTTP_410_GONE,
+            detail="Shared report has expired"
+        )
+    
+    # Check password if required
+    if shared["access_level"] == "password_protected":
+        if not password:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Password required"
+            )
+        
+        from passlib.context import CryptContext
+        pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+        
+        if not pwd_context.verify(password, shared["password_hash"]):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid password"
+            )
+    
+    # Increment view count
+    update_query = """
+        UPDATE shared_reports
+        SET view_count = view_count + 1
+        WHERE share_token = $1
+    """
+    await postgres_conn.execute(update_query, share_token)
+    
+    return {
+        "report_id": str(shared["report_id"]),
+        "file_url": shared["file_url"],
+        "format": shared["format"],
+        "report_type": shared["report_type"],
+        "view_count": shared["view_count"] + 1
+    }
 
 
 @router.delete("/reports/{report_id}", status_code=status.HTTP_204_NO_CONTENT)

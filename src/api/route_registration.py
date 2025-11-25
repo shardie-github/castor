@@ -14,7 +14,7 @@ def register_all_routes(app: FastAPI):
         tenants, attribution, ai, cost, security, backup, optimization,
         risk, partners, business, auth, billing, campaigns, podcasts,
         episodes, sponsors, reports, analytics, users, email,
-        sprint_metrics, monitoring, features
+        sprint_metrics, monitoring, features, metrics, referrals
     )
     
     # Core routes (always available)
@@ -41,6 +41,8 @@ def register_all_routes(app: FastAPI):
     app.include_router(partners.router, tags=["partners"])
     app.include_router(business.router, tags=["business"])
     app.include_router(features.router, prefix="/api/v1", tags=["features"])
+    app.include_router(metrics.router, prefix="/api/v1", tags=["metrics"])
+    app.include_router(referrals.router, prefix="/api/v1", tags=["referrals"])
     
     # Feature-flagged routes
     _register_feature_flagged_routes(app)
