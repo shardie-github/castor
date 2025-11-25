@@ -102,7 +102,19 @@ def sanitize_error_message(error: Exception) -> str:
         # Return generic message for unexpected errors
         if isinstance(error, AppError):
             return error.message
-        return "An error occurred. Please try again later."
+        # Sanitize common error patterns that might leak information
+        error_str = str(error)
+        # Remove file paths
+        import re
+        error_str = re.sub(r'/[\w/.-]+\.py', '[file]', error_str)
+        # Remove line numbers
+        error_str = re.sub(r'line \d+', '[line]', error_str)
+        # Remove stack trace indicators
+        error_str = re.sub(r'Traceback.*', '', error_str, flags=re.DOTALL)
+        # Generic message for any remaining technical details
+        if any(keyword in error_str.lower() for keyword in ['traceback', 'exception', 'error at', 'file']):
+            return "An error occurred. Please try again later."
+        return error_str[:200]  # Limit length limit
     else:
         # In development, show full error
         return str(error)

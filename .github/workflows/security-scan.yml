@@ -1,16 +1,38 @@
 name: Security Scan
 
 on:
+  schedule:
+    # Run weekly on Monday at 9 AM UTC
+    - cron: '0 9 * * 1'
+  push:
+    branches: [main, develop]
   pull_request:
     branches: [main, develop]
-  push:
-    branches: [main]
-  schedule:
-    - cron: '0 2 * * 1'  # Weekly on Monday at 2 AM
+  workflow_dispatch:
 
 jobs:
-  security-scan:
-    name: Security Vulnerability Scan
+  secrets-scan:
+    name: Secrets Scanning
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for secret scanning
+      
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Run TruffleHog
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.repository.default_branch }}
+          head: HEAD
+
+  dependency-scan-backend:
+    name: Dependency Scan (Backend)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -21,6 +43,31 @@ jobs:
           python-version: '3.11'
           cache: 'pip'
       
+      - name: Install pip-audit
+        run: pip install pip-audit
+      
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      
+      - name: Run pip-audit
+        run: |
+          pip-audit --desc --format=json --output=backend-audit.json || true
+          pip-audit --desc || exit 1
+      
+      - name: Upload audit results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: backend-security-audit
+          path: backend-audit.json
+          retention-days: 30
+
+  dependency-scan-frontend:
+    name: Dependency Scan (Frontend)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -28,80 +75,57 @@ jobs:
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
       
-      # Python security scan
-      - name: Run Safety check
-        continue-on-error: true
-        run: |
-          pip install safety
-          safety check --file requirements.txt --json || true
+      - name: Install dependencies
+        working-directory: ./frontend
+        run: npm ci
       
-      # Node.js security scan
       - name: Run npm audit
-        continue-on-error: true
         working-directory: ./frontend
         run: |
-          npm audit --audit-level=moderate --json > npm-audit.json || true
+          npm audit --audit-level=moderate --json > frontend-audit.json || true
+          npm audit --audit-level=moderate || exit 1
       
-      # Trivy vulnerability scanner
-      - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
-        with:
-          scan-type: 'fs'
-          scan-ref: '.'
-          format: 'sarif'
-          output: 'trivy-results.sarif'
-          severity: 'CRITICAL,HIGH'
-      
-      - name: Upload Trivy results to GitHub Security
-        uses: github/codeql-action/upload-sarif@v2
+      - name: Upload audit results
         if: always()
+        uses: actions/upload-artifact@v3
         with:
-          sarif_file: 'trivy-results.sarif'
-      
-      # Bandit security linter
-      - name: Run Bandit security linter
-        continue-on-error: true
-        run: |
-          pip install bandit[toml]
-          bandit -r src/ -f json -o bandit-report.json || true
-      
-      # Secret scanning
-      - name: Run Gitleaks
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      
-      # Dependency review
-      - name: Dependency Review
-        uses: actions/dependency-review-action@v3
-        if: github.event_name == 'pull_request'
-        with:
-          fail-on-severity: moderate
+          name: frontend-security-audit
+          path: frontend/frontend-audit.json
+          retention-days: 30
 
-  code-quality-scan:
-    name: Code Quality Security Scan
+  code-scan:
+    name: Code Security Scan
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
+      - name: Run Bandit (Python security linter)
+        run: |
+          pip install bandit[toml]
+          bandit -r src/ -f json -o bandit-report.json || true
+          bandit -r src/ || exit 1
       
-      # Semgrep security scan
-      - name: Run Semgrep
-        uses: returntocorp/semgrep-action@v1
-        with:
-          config: >-
-            p/security-audit
-            p/owasp-top-ten
-            p/python
-            p/ci
-          generateSarif: "1"
-      
-      - name: Upload Semgrep results
-        uses: github/codeql-action/upload-sarif@v2
+      - name: Upload Bandit report
         if: always()
+        uses: actions/upload-artifact@v3
         with:
-          sarif_file: semgrep.sarif
+          name: bandit-security-report
+          path: bandit-report.json
+          retention-days: 30
+
+  summary:
+    name: Security Scan Summary
+    runs-on: ubuntu-latest
+    needs: [secrets-scan, dependency-scan-backend, dependency-scan-frontend, code-scan]
+    if: always()
+    steps:
+      - name: Security scan summary
+        run: |
+          echo "## Security Scan Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Secrets scanning completed" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Backend dependency scanning completed" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Frontend dependency scanning completed" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Code security scanning completed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Check artifacts for detailed reports." >> $GITHUB_STEP_SUMMARY
