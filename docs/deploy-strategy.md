@@ -1,225 +1,362 @@
 # Deployment Strategy
 
-**Last Updated:** 2024-12  
-**Status:** Canonical deployment strategy  
-**Purpose:** Define the source of truth for Preview and Production deployments
+This document outlines the deployment strategy for the Podcast Analytics & Sponsorship Platform.
 
----
+## Architecture Overview
 
-## Canonical Deploy Path
+```
+┌─────────────────┐
+│   Vercel (CDN)  │  Frontend (Next.js)
+└────────┬────────┘
+         │ HTTPS
+┌────────▼────────┐
+│  Backend API    │  FastAPI (Fly.io/K8s/Render)
+└────────┬────────┘
+         │
+    ┌────┴────┐
+    │         │
+┌───▼───┐ ┌──▼────┐
+│  PG   │ │ Redis │
+│Supabase│ │ Cache │
+└───────┘ └───────┘
+```
 
-### Preview Deployments (Pull Requests)
+## Frontend Deployment
 
-**Trigger:** Pull requests to `main` branch
+### Provider: Vercel
 
-**Workflow:** `.github/workflows/frontend-ci-deploy.yml`
-
-**Process:**
-1. PR opened or updated → Workflow triggers
-2. `build-and-test` job runs:
-   - Lint (`npm run lint`)
-   - Type check (`npm run type-check`)
-   - Tests (`npm test`)
-   - Build (`npm run build`)
-3. On success, `deploy-preview` job runs:
-   - Install Vercel CLI
-   - Pull Vercel environment variables (`vercel pull --environment=preview`)
-   - Deploy to Vercel Preview (`vercel deploy --prebuilt`)
-4. Preview URL available in PR comments (via Vercel bot if Git Integration enabled, or manual)
-
-**Environment:** Preview (uses Vercel Preview environment variables)
-
-**URL Pattern:** `https://podcast-analytics-frontend-<hash>.vercel.app`
-
----
-
-### Production Deployments (Main Branch)
-
-**Trigger:** Push to `main` branch
-
-**Workflow:** `.github/workflows/frontend-ci-deploy.yml`
-
-**Process:**
-1. Push to `main` → Workflow triggers
-2. `build-and-test` job runs (same as Preview)
-3. On success, `deploy-production` job runs:
-   - Install Vercel CLI
-   - Pull Vercel environment variables (`vercel pull --environment=production`)
-   - Build for production (`npm run build`)
-   - Deploy to Vercel Production (`vercel deploy --prebuilt --prod`)
-4. Production URL updated (configured in Vercel project settings)
-
-**Environment:** Production (uses Vercel Production environment variables)
-
-**URL:** Configured custom domain or `https://podcast-analytics-frontend.vercel.app`
-
----
-
-## Hosting Platform
-
-**Canonical Host:** **Vercel**
-
-**Rationale:**
-- Next.js 14 optimized for Vercel
-- Zero-config deployments
-- Automatic HTTPS
+**Why Vercel:**
+- Optimized for Next.js
+- Automatic CDN distribution
 - Preview deployments for PRs
-- Excellent developer experience
-- Free tier suitable for development
+- Zero-configuration deployment
+- Built-in analytics
 
-**Alternative:** None (Vercel is the single source of truth for frontend hosting)
+**Deployment Flow:**
+1. Push to `main` → Automatic production deployment
+2. Open PR → Automatic preview deployment
+3. Vercel builds Next.js app
+4. Deploys to global CDN
+
+**Configuration:**
+- `vercel.json` - Project configuration
+- Environment variables in Vercel dashboard
+- Custom domains supported
+
+**Status:** ✅ Primary deployment method
+
+## Backend Deployment
+
+### Option 1: Fly.io (Recommended for Startups)
+
+**Why Fly.io:**
+- Simple Docker-based deployment
+- Automatic scaling
+- Global edge network
+- Cost-effective ($5-20/month)
+- Easy to set up
+
+**Deployment Flow:**
+1. Build Docker image
+2. Deploy to Fly.io
+3. Automatic health checks
+4. Zero-downtime deployments
+
+**Configuration:**
+- `Dockerfile` or `Dockerfile.prod`
+- `fly.toml` (if using Fly.io)
+- Environment variables in Fly.io dashboard
+
+**Status:** ⚠️ Available, recommended for MVP
+
+### Option 2: Kubernetes (Recommended for Scale)
+
+**Why Kubernetes:**
+- Enterprise-grade scalability
+- High availability
+- Advanced orchestration
+- Multi-cloud support
+
+**Deployment Flow:**
+1. Build Docker image
+2. Push to container registry
+3. Apply Kubernetes manifests
+4. Rolling updates
+
+**Configuration:**
+- `k8s/deployment.yaml` - Deployment manifest
+- `k8s/service.yaml` - Service definition
+- Helm charts (optional)
+
+**Status:** ⚠️ Available, recommended for scale
+
+### Option 3: Render
+
+**Why Render:**
+- Simple platform-as-a-service
+- Automatic deployments from Git
+- Built-in SSL
+- Database hosting
+
+**Deployment Flow:**
+1. Connect GitHub repository
+2. Configure build settings
+3. Automatic deployments on push
+4. Health checks
+
+**Configuration:**
+- `render.yaml` - Render configuration
+- Environment variables in Render dashboard
+
+**Status:** ⚠️ Available
+
+## Database Deployment
+
+### Provider: Supabase (Recommended)
+
+**Why Supabase:**
+- Managed PostgreSQL with TimescaleDB
+- Automatic backups
+- Point-in-time recovery
+- Web UI for management
+- Real-time capabilities
+
+**Migration Strategy:**
+1. Apply master migration (`db/migrations/99999999999999_master_schema.sql`)
+2. Run incremental migrations (if any)
+3. Verify schema with `scripts/db-validate-schema.ts`
+
+**Backup Strategy:**
+- Daily automated backups (Supabase Pro)
+- Point-in-time recovery available
+- Manual backup before major migrations
+
+**Status:** ✅ Recommended
+
+## Environment Strategy
+
+### Development
+
+**Frontend:**
+- Local: `http://localhost:3000`
+- Vercel Preview: Automatic on PR
+
+**Backend:**
+- Local: `http://localhost:8000`
+- Docker Compose: `docker-compose up`
+
+**Database:**
+- Local: PostgreSQL via Docker Compose
+- Supabase Free tier (optional)
+
+### Staging
+
+**Frontend:**
+- Vercel Preview deployment
+- Staging domain (if configured)
+
+**Backend:**
+- Staging instance (Fly.io/Render/K8s)
+- Staging database (Supabase)
+
+**Purpose:**
+- Pre-production testing
+- Integration testing
+- Demo environment
+
+### Production
+
+**Frontend:**
+- Vercel Production deployment
+- Production domain
+
+**Backend:**
+- Production instance
+- Production database (Supabase Pro)
+
+**Requirements:**
+- All environment variables set
+- SSL certificates configured
+- Monitoring enabled
+- Backups configured
+
+## Deployment Checklist
+
+### Pre-Deployment
+
+- [ ] All tests passing
+- [ ] Code reviewed and approved
+- [ ] Migration scripts tested
+- [ ] Environment variables updated
+- [ ] Documentation updated
+- [ ] Changelog updated
+
+### Frontend Deployment
+
+- [ ] Merge to `main` branch
+- [ ] CI pipeline passes
+- [ ] Vercel deployment succeeds
+- [ ] Preview URL works (for PRs)
+- [ ] Production URL works (for main)
+- [ ] Environment variables verified
+
+### Backend Deployment
+
+- [ ] Docker image builds successfully
+- [ ] Health checks pass
+- [ ] Database migrations applied (if needed)
+- [ ] Environment variables set
+- [ ] SSL certificates valid
+- [ ] Monitoring configured
+
+### Post-Deployment
+
+- [ ] Smoke tests pass
+- [ ] Health endpoint responds
+- [ ] Critical features verified
+- [ ] Error rates monitored
+- [ ] Performance metrics checked
+
+## Rollback Strategy
+
+### Frontend (Vercel)
+
+1. Go to Vercel dashboard
+2. Select deployment
+3. Click "Promote to Production"
+4. Previous deployment automatically restored
+
+### Backend
+
+**Fly.io:**
+```bash
+fly releases
+fly releases rollback <release-id>
+```
+
+**Kubernetes:**
+```bash
+kubectl rollout undo deployment/backend
+```
+
+**Render:**
+- Use Render dashboard to rollback
+
+### Database
+
+- Restore from backup (Supabase dashboard)
+- Point-in-time recovery (Supabase Pro)
+
+## Monitoring & Alerts
+
+### Health Checks
+
+- `/health` endpoint - Application health
+- `/metrics` endpoint - Prometheus metrics
+
+### Monitoring Tools
+
+- **Vercel Analytics** - Frontend performance
+- **Prometheus + Grafana** - Backend metrics
+- **Sentry** (optional) - Error tracking
+- **Uptime monitoring** - External service
+
+### Alerting
+
+- Health check failures
+- High error rates
+- Database connection issues
+- High latency
+
+## Security Considerations
+
+### SSL/TLS
+
+- Automatic SSL via Vercel (frontend)
+- SSL certificates for backend (Let's Encrypt or provider)
+- Force HTTPS in production
+
+### Secrets Management
+
+- Never commit secrets to Git
+- Use environment variables
+- Rotate secrets regularly
+- Use secret management tools (Vercel, provider dashboard)
+
+### Database Security
+
+- Use connection pooling
+- Enable SSL for database connections
+- Restrict database access by IP (if possible)
+- Regular security updates
+
+## Cost Optimization
+
+### Frontend (Vercel)
+
+- Free tier: 100 GB bandwidth/month
+- Pro tier: $20/month (if needed)
+- Optimize bundle size
+- Use CDN caching
+
+### Backend
+
+- **Fly.io:** $5-20/month (startup-friendly)
+- **Kubernetes:** Variable (cloud provider pricing)
+- **Render:** $7-25/month (simple option)
+
+### Database (Supabase)
+
+- Free tier: Development/testing
+- Pro tier: $25/month (production)
+- Team tier: $599/month (scale)
+
+## Scaling Strategy
+
+### Horizontal Scaling
+
+- Multiple backend instances
+- Load balancer (if needed)
+- Database read replicas
+
+### Vertical Scaling
+
+- Increase instance size
+- Optimize database queries
+- Add caching layers
+
+### Cost Scaling
+
+- Start with free/low-cost tiers
+- Scale up as revenue grows
+- Monitor costs regularly
+
+## Disaster Recovery
+
+### Backup Strategy
+
+- Daily automated backups (Supabase)
+- Point-in-time recovery
+- Manual backups before major changes
+
+### Recovery Procedures
+
+1. Identify issue
+2. Restore from backup
+3. Verify data integrity
+4. Resume operations
+5. Post-mortem analysis
+
+## Future Improvements
+
+- [ ] Implement blue-green deployments
+- [ ] Add canary deployments
+- [ ] Automate rollback procedures
+- [ ] Add deployment metrics dashboard
+- [ ] Implement feature flags for gradual rollouts
+- [ ] Add automated performance testing
+- [ ] Implement chaos engineering
 
 ---
 
-## Workflow Mapping
-
-### Preview Deployments
-
-| Branch | Event | Workflow | Job | Environment |
-|--------|-------|----------|-----|-------------|
-| Any → `main` | `pull_request` | `frontend-ci-deploy.yml` | `deploy-preview` | Preview |
-
-### Production Deployments
-
-| Branch | Event | Workflow | Job | Environment |
-|--------|-------|----------|-----|-------------|
-| `main` | `push` | `frontend-ci-deploy.yml` | `deploy-production` | Production |
-
----
-
-## Vercel Project Configuration
-
-### Project Details
-
-**Project Name:** `podcast-analytics-frontend` (or as configured in Vercel)
-
-**Root Directory:** `frontend` (configured in Vercel project settings)
-
-**Build Command:** `npm run build` (auto-detected by Vercel)
-
-**Output Directory:** `.next` (auto-detected by Vercel)
-
-**Install Command:** `npm ci` (uses package-lock.json)
-
-### Project IDs (from Secrets)
-
-- `VERCEL_ORG_ID` - Vercel organization ID
-- `VERCEL_PROJECT_ID` - Vercel project ID
-
-**Note:** These are stored in GitHub Secrets and used by CI workflows.
-
----
-
-## Git Integration Strategy
-
-**Decision:** Use **GitHub Actions (CLI-based)** as primary deployment method
-
-**Rationale:**
-- More control over deployment process
-- Can run tests/builds before deploy
-- Can handle complex multi-step deployments
-- Better integration with CI/CD pipeline
-
-**Vercel Git Integration:** **DISABLED** (to avoid conflicts)
-
-**Note:** If Vercel Git Integration is enabled, it will conflict with GitHub Actions deployments. Choose one approach:
-- **Option A:** Use GitHub Actions (recommended) - Disable Vercel Git Integration
-- **Option B:** Use Vercel Git Integration - Remove Vercel CLI steps from GitHub Actions
-
-**Current Choice:** Option A (GitHub Actions)
-
----
-
-## Environment Variables
-
-### Required Vercel Environment Variables
-
-**Production:**
-- `NEXT_PUBLIC_API_URL` - Production backend API URL
-- `NEXT_PUBLIC_SUPABASE_URL` - Supabase project URL (if using)
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY` - Supabase anonymous key (if using)
-- `NEXT_PUBLIC_SITE_URL` - Production site URL
-
-**Preview:**
-- Same as Production (or use staging URLs)
-
-**Development:**
-- `NEXT_PUBLIC_API_URL=http://localhost:8000`
-- `NEXT_PUBLIC_SITE_URL=http://localhost:3000`
-
-### Required GitHub Secrets
-
-**For CI/CD:**
-- `VERCEL_TOKEN` - Vercel API token (required)
-- `VERCEL_ORG_ID` - Vercel organization ID (optional, but recommended)
-- `VERCEL_PROJECT_ID` - Vercel project ID (optional, but recommended)
-- `NEXT_PUBLIC_API_URL` - Backend API URL for builds
-- `NEXT_PUBLIC_SUPABASE_URL` - Supabase URL (if using)
-- `SUPABASE_ANON_KEY` - Supabase anonymous key (if using)
-- `NEXT_PUBLIC_SITE_URL` - Site URL for builds
-
-**See:** `docs/env-and-secrets.md` for complete mapping
-
----
-
-## Deployment Verification
-
-### Preview Deployment Verification
-
-**Checklist:**
-- [ ] PR created → Workflow runs
-- [ ] `build-and-test` job passes
-- [ ] `deploy-preview` job runs
-- [ ] Preview URL appears in PR (or Vercel dashboard)
-- [ ] Preview site loads correctly
-- [ ] Environment variables are correct (check browser console)
-
-### Production Deployment Verification
-
-**Checklist:**
-- [ ] Push to `main` → Workflow runs
-- [ ] `build-and-test` job passes
-- [ ] `deploy-production` job runs
-- [ ] Production URL updated (check Vercel dashboard)
-- [ ] Production site loads correctly
-- [ ] Environment variables are correct
-- [ ] Smoke tests pass (if configured)
-
----
-
-## Failure Handling
-
-### If Preview Deployment Fails
-
-1. Check GitHub Actions logs for error
-2. Verify secrets are set (`VERCEL_TOKEN`, etc.)
-3. Check Vercel project is linked correctly
-4. Verify environment variables in Vercel dashboard
-5. Check `package-lock.json` exists and is up to date
-
-### If Production Deployment Fails
-
-1. Check GitHub Actions logs for error
-2. Verify all required secrets are set
-3. Check Vercel project configuration
-4. Verify production environment variables
-5. Check for build errors (TypeScript, lint, etc.)
-6. Review `vercel.json` configuration
-
-**See:** `docs/vercel-troubleshooting.md` for detailed troubleshooting
-
----
-
-## Summary
-
-**Canonical Deploy Path:**
-- **Preview:** PR → `frontend-ci-deploy.yml` → `deploy-preview` → Vercel Preview
-- **Production:** Push to `main` → `frontend-ci-deploy.yml` → `deploy-production` → Vercel Production
-
-**Hosting:** Vercel (single source of truth)
-
-**Deployment Method:** GitHub Actions with Vercel CLI (Vercel Git Integration disabled)
-
-**Workflow:** `.github/workflows/frontend-ci-deploy.yml`
-
-**Next Steps:** See `docs/deploy-reliability-plan.md` for implementation details
+**Last Updated:** 2024-12-XX

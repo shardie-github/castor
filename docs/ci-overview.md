@@ -1,417 +1,268 @@
 # CI/CD Overview
 
-**Last Updated:** 2024  
-**Purpose:** Overview of CI/CD workflows, required checks, and branch protection
+This document provides a comprehensive overview of the CI/CD pipeline, workflows, and deployment strategies.
 
----
+## Workflow Overview
 
-## Active Workflows
-
-### 1. CI (`ci.yml`)
+### Main CI Pipeline (`ci.yml`)
 
 **Triggers:**
 - Pull requests to `main` or `develop`
-- Push to `main` or `develop`
+- Pushes to `main` or `develop`
 
 **Jobs:**
-- `lint-backend` - Ruff + mypy
-- `lint-frontend` - ESLint + TypeScript check
-- `test-backend` - pytest with coverage (50% minimum)
-- `test-frontend` - Jest tests
-- `build-backend` - Docker build verification
-- `build-frontend` - Next.js build
-
-**Status:** ✅ Active and required
-
----
-
-### 2. Frontend CI & Deploy (`frontend-ci-deploy.yml`)
-
-**Triggers:**
-- Pull requests to `main` or `develop` (preview deployment)
-- Push to `main` or `develop` (production/staging deployment)
-- Manual dispatch
-- **Note:** Path filters removed to ensure workflow runs on all PRs/pushes
-
-**Jobs:**
-- `build-and-test` - Lint, type-check, test, build
-- `deploy-preview` - Deploy to Vercel preview (PRs only)
-- `deploy-production` - Deploy to Vercel production (main branch pushes only)
-
-**Features:**
-- Secret validation before deployment
-- Proper Vercel CLI command sequence
-- Concurrency control (cancels in-progress deployments)
-- Clear error messages (no silent failures)
-
-**Status:** ✅ Active and Fixed
-
----
-
-### 3. Database Migrations (`db-migrate.yml`)
-
-**Triggers:**
-- Push to `main` (staging migration)
-- Changes to `db/migrations/**`
-- Manual dispatch (staging or production)
-
-**Jobs:**
-- `validate-migrations` - Validate migration files
-- `migrate-staging` - Apply migrations to staging
-- `migrate-production` - Apply migrations to production (manual only)
+1. **Lint Backend** - Runs `ruff check` and `mypy`
+2. **Lint Frontend** - Runs ESLint and TypeScript type checking
+3. **Test Backend** - Runs pytest with coverage (minimum 50%)
+4. **Test Frontend** - Runs Jest tests
+5. **Build Backend** - Builds Docker image (if Dockerfile exists)
+6. **Build Frontend** - Builds Next.js application
 
 **Status:** ✅ Active
 
----
-
-### 4. Deploy Production (`deploy.yml`)
+### Frontend CI & Deploy (`frontend-ci-deploy.yml`)
 
 **Triggers:**
-- Push to `main`
-- Manual dispatch
+- Pull requests to `main` or `develop`
+- Pushes to `main` or `develop`
+- Manual workflow dispatch
 
 **Jobs:**
-- `deploy-production` - Full production deployment
-  - Run migrations
-  - Build and push Docker image
-  - Deploy frontend to Vercel
-  - Deploy backend (placeholder)
-  - Run smoke tests (placeholder)
-  - Notify deployment
-
-**Status:** ✅ Active (backend deployment needs completion)
-
----
-
-### 5. Deploy Staging (`deploy-staging.yml`)
-
-**Triggers:**
-- Push to `develop`
-- Manual dispatch
-
-**Jobs:**
-- `deploy-staging` - Full staging deployment
-  - Run tests
-  - Run migrations
-  - Build and push Docker image
-  - Deploy frontend to Vercel
-  - Deploy backend (placeholder)
-  - Run smoke tests (placeholder)
-
-**Status:** ✅ Active (backend deployment needs completion)
-
----
-
-### 6. Test Migrations (`test-migrations.yml`)
-
-**Triggers:**
-- Pull requests affecting migrations
-- Manual dispatch
-
-**Jobs:**
-- `test-migrations` - Validate and test migrations against test database
+1. **Build and Test** - Lint, type-check, test, and build frontend
+2. **Deploy Preview** - Deploys preview to Vercel (on PR)
+3. **Deploy Production** - Deploys to Vercel production (on main branch)
 
 **Status:** ✅ Active
 
----
+### Database Migrations (`db-migrate.yml`)
 
-## Obsolete/Deprecated Workflows
+**Triggers:**
+- Manual workflow dispatch
+- Scheduled (optional)
 
-### 1. `ci.yml.new`
+**Jobs:**
+- Validates migration files
+- Tests migrations against test database
+- Applies migrations (if configured)
 
-**Status:** ❌ Obsolete - Duplicate of `ci.yml`
+**Status:** ✅ Active
 
-**Action:** Delete this file
+### End-to-End Tests (`e2e-tests.yml`)
 
----
+**Triggers:**
+- Pull requests
+- Manual workflow dispatch
 
-### 2. `nightly.yml.new`
+**Jobs:**
+- Runs Playwright E2E tests
+- Tests critical user flows
 
-**Status:** ⚠️ Review - May be useful but needs activation
+**Status:** ✅ Active
 
-**Content:** Security scans, migration validation, E2E tests, Aurora Doctor
+### Smoke Tests (`smoke-tests.yml`)
 
-**Recommendation:** 
-- If useful, rename to `nightly.yml` and activate
-- If not needed, delete
+**Triggers:**
+- After deployments
+- Manual workflow dispatch
 
----
+**Jobs:**
+- Health check validation
+- Critical endpoint verification
 
-### 3. `nightly.yml` (if exists)
+**Status:** ✅ Active
 
-**Status:** ⚠️ Review - Check if actively used
+### Security Scanning (`security-scan.yml`)
 
-**Recommendation:** Keep if useful, otherwise delete
+**Triggers:**
+- Weekly schedule
+- Manual workflow dispatch
 
----
+**Jobs:**
+- Dependency vulnerability scanning
+- Code security analysis
 
-### 4. `e2e-tests.yml`
+**Status:** ✅ Active
 
-**Status:** ⚠️ Optional - E2E tests exist but may not be required for PRs
+## Deployment Strategies
 
-**Content:** Playwright E2E tests
+### Frontend Deployment
 
-**Recommendation:**
-- Keep for manual testing
-- Don't require for PRs (too slow)
-- Run in nightly workflow if needed
+**Provider:** Vercel
 
----
+**Strategy:**
+- **Preview Deployments:** Automatic on every PR
+- **Production Deployments:** Automatic on push to `main`
 
-### 5. `aurora-doctor.yml`
+**Configuration:**
+- `vercel.json` - Vercel configuration
+- Environment variables managed in Vercel dashboard
+- Build command: `cd frontend && npm run build`
 
-**Status:** ⚠️ Optional - Health check automation
+**Status:** ✅ Configured
 
-**Recommendation:**
-- Keep if Aurora Prime is actively used
-- Otherwise, delete or move to nightly
+### Backend Deployment Options
 
----
+#### Option 1: Fly.io (`deploy-backend-fly.yml`)
 
-## Required Checks for Main Branch
+**Provider:** Fly.io
 
-### Minimum Required Checks
+**Configuration:**
+- Docker-based deployment
+- Automatic scaling
+- Health checks
 
-1. ✅ **lint-backend** - Backend linting (ruff, mypy)
-2. ✅ **lint-frontend** - Frontend linting (ESLint, TypeScript)
-3. ✅ **test-backend** - Backend tests with coverage
-4. ✅ **test-frontend** - Frontend tests
-5. ✅ **build-backend** - Backend Docker build
-6. ✅ **build-frontend** - Frontend Next.js build
+**Status:** ⚠️ Available but not primary
 
-### Optional Checks (Not Required)
+#### Option 2: Kubernetes (`deploy-backend-k8s.yml`)
 
-- ⚠️ **e2e-tests** - E2E tests (too slow for PRs, run nightly)
-- ⚠️ **test-migrations** - Migration tests (only when migrations change)
-- ⚠️ **aurora-doctor** - Health checks (run nightly)
+**Provider:** Kubernetes cluster
 
----
+**Configuration:**
+- `k8s/deployment.yaml` - Kubernetes manifests
+- Helm charts (if applicable)
 
-## Branch Protection Recommendations
+**Status:** ⚠️ Available but not primary
 
-### Main Branch Protection
+#### Option 3: Render (`deploy-backend-render.yml`)
 
-**Required Checks:**
-- `lint-backend`
-- `lint-frontend`
-- `test-backend`
-- `test-frontend`
-- `build-backend`
-- `build-frontend`
+**Provider:** Render
 
-**Settings:**
-- Require PR reviews: 1 approval
-- Require status checks to pass: ✅
-- Require branches to be up to date: ✅
-- Require conversation resolution: ✅
-- Do not allow force pushes: ✅
-- Do not allow deletions: ✅
+**Configuration:**
+- `render.yaml` - Render configuration
+- Automatic deployments
 
-### Develop Branch Protection
+**Status:** ⚠️ Available but not primary
 
-**Required Checks:**
-- Same as main (or subset)
+## Branch Protection
 
-**Settings:**
-- Require PR reviews: Optional
-- Require status checks to pass: ✅
-- Allow force pushes: ❌
-- Allow deletions: ❌
+### Main Branch (`main`)
 
----
+**Protection Rules:**
+- Require pull request reviews
+- Require status checks to pass
+- Require branches to be up to date
+- Require conversation resolution before merging
 
-## Package Manager & Version Locking
+**Required Status Checks:**
+- ✅ Lint Backend
+- ✅ Lint Frontend
+- ✅ Test Backend
+- ✅ Test Frontend
+- ✅ Build Backend
+- ✅ Build Frontend
 
-### Frontend
+**Status:** ⚠️ Should be configured in GitHub settings
 
-**Package Manager:** npm  
-**Lockfile:** `frontend/package-lock.json` ✅ Present (committed)
+### Develop Branch (`develop`)
 
-**Node Version:**
-- CI: Node 20 (pinned in workflows)
-- Local: Node 20 (via `frontend/.nvmrc`)
-- package.json: `"node": ">=20.0.0"` ✅ Present
+**Protection Rules:**
+- Similar to main (less strict)
+- Allows faster iteration
 
-**Status:** ✅ All version consistency issues fixed
+**Status:** ⚠️ Should be configured in GitHub settings
 
-### Backend
+## Environment Variables
 
-**Package Manager:** pip  
-**Lockfile:** ❌ No `requirements.lock` or `Pipfile.lock`
+### CI/CD Secrets
 
-**Python Version:**
-- CI: Python 3.11 (pinned in workflows)
-- **Missing:** `python_requires` in `setup.py` or `pyproject.toml`
+Required GitHub Secrets:
+- `VERCEL_TOKEN` - Vercel deployment token
+- `VERCEL_ORG_ID` - Vercel organization ID
+- `VERCEL_PROJECT_ID` - Vercel project ID
+- `NEXT_PUBLIC_API_URL` - Public API URL
+- `NEXT_PUBLIC_SUPABASE_URL` - Supabase URL
+- `SUPABASE_ANON_KEY` - Supabase anonymous key
 
-**Action Required:** Consider adding version pinning (optional for pip, but recommended)
+**Status:** ⚠️ Must be configured in GitHub Secrets
 
----
+### Environment-Specific Variables
 
-## CI Scripts in package.json
+**Development:**
+- Uses `.env` file (gitignored)
+- Default values for local development
 
-### Frontend Scripts
+**Staging:**
+- Configured in Vercel staging environment
+- Uses staging database
 
-**Current:**
-```json
-{
-  "dev": "next dev",
-  "build": "next build",
-  "start": "next start",
-  "lint": "next lint",
-  "test": "jest",
-  "test:watch": "jest --watch",
-  "test:coverage": "jest --coverage",
-  "type-check": "tsc --noEmit"
-}
-```
+**Production:**
+- Configured in Vercel production environment
+- Uses production database
+- All secrets must be set
 
-**Status:** ✅ Complete and matches CI
+## Deployment Checklist
 
-**Optional Addition:**
-```json
-{
-  "ci:check": "npm run lint && npm run type-check && npm test -- --watchAll=false && npm run build"
-}
-```
+### Pre-Deployment
 
-### Backend Scripts
+- [ ] All tests passing
+- [ ] Code reviewed and approved
+- [ ] Migration scripts tested
+- [ ] Environment variables updated
+- [ ] Documentation updated
 
-**Current:** Managed via Makefile
+### Deployment
 
-**Makefile Commands:**
-- `make ci` - Run all CI checks
-- `make lint` - Lint backend and frontend
-- `make test` - Run all tests
-- `make build` - Build backend and frontend
+- [ ] Merge to `main` branch
+- [ ] CI pipeline passes
+- [ ] Frontend deploys to Vercel
+- [ ] Backend deploys (if applicable)
+- [ ] Database migrations applied (if needed)
 
-**Status:** ✅ Complete
+### Post-Deployment
 
----
+- [ ] Smoke tests pass
+- [ ] Health checks pass
+- [ ] Monitor error rates
+- [ ] Verify critical features
 
-## Dependency Automation
+## Troubleshooting
 
-### Current Status
+### CI Pipeline Failures
 
-**Dependabot:** ❌ Not configured  
-**Renovate:** ❌ Not configured
+**Common Issues:**
+1. **Lint failures** - Run `ruff check` and `npm run lint` locally
+2. **Test failures** - Run tests locally to reproduce
+3. **Build failures** - Check for missing dependencies or configuration
 
-### Recommendation
+### Deployment Failures
 
-**Add Dependabot** (simpler, GitHub-native):
+**Frontend:**
+- Check Vercel deployment logs
+- Verify environment variables
+- Check build errors in Vercel dashboard
 
-Create `.github/dependabot.yml`:
-```yaml
-version: 2
-updates:
-  - package-ecosystem: "npm"
-    directory: "/frontend"
-    schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 5
-  
-  - package-ecosystem: "pip"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 5
-```
+**Backend:**
+- Check deployment provider logs
+- Verify database connectivity
+- Check health endpoint
 
-**Benefits:**
-- Automatic dependency updates
-- Security vulnerability alerts
-- Weekly schedule (not too frequent)
+### Database Migration Issues
 
----
+- Test migrations locally first
+- Use `db-migrate.yml` workflow for validation
+- Always backup production database before migrations
 
-## Workflow Concurrency
+## Best Practices
 
-### Current Concurrency Settings
+1. **Always test locally** before pushing
+2. **Keep PRs small** for easier review
+3. **Write tests** for new features
+4. **Update documentation** with changes
+5. **Monitor deployments** after release
+6. **Use feature flags** for gradual rollouts
+7. **Keep secrets secure** - never commit secrets
+8. **Review CI logs** regularly for issues
 
-**Frontend Deploy:**
-- Preview: `frontend-deploy-${{ github.head_ref }}` ✅
-- Production: `frontend-deploy-production` ✅
+## Future Improvements
 
-**Backend Deploy:**
-- ❌ No concurrency settings (may cause conflicts)
-
-### Recommendation
-
-Add concurrency to backend deployment workflows:
-```yaml
-concurrency:
-  group: backend-deploy-${{ github.ref }}
-  cancel-in-progress: false
-```
-
----
-
-## CI Performance
-
-### Current Job Times (Estimated)
-
-- `lint-backend`: ~2 minutes
-- `lint-frontend`: ~3 minutes
-- `test-backend`: ~5 minutes
-- `test-frontend`: ~3 minutes
-- `build-backend`: ~5 minutes
-- `build-frontend`: ~4 minutes
-
-**Total PR Check Time:** ~22 minutes (parallel jobs)
-
-### Optimization Opportunities
-
-1. **Cache Dependencies:**
-   - ✅ Frontend: npm cache configured
-   - ✅ Backend: pip cache configured
-
-2. **Parallel Jobs:**
-   - ✅ Jobs run in parallel where possible
-
-3. **Conditional Runs:**
-   - ⚠️ Consider path-based triggers (only run relevant jobs)
+- [ ] Add automated performance testing
+- [ ] Implement canary deployments
+- [ ] Add deployment notifications (Slack, email)
+- [ ] Automate database backup before migrations
+- [ ] Add rollback automation
+- [ ] Implement blue-green deployments
+- [ ] Add deployment metrics dashboard
 
 ---
 
-## Summary
-
-### ✅ What's Working
-
-- Comprehensive CI pipeline
-- Frontend deployment automation
-- Database migration workflows
-- Proper caching and parallelization
-
-### ⚠️ Needs Attention
-
-1. **Remove obsolete workflows:**
-   - Delete `ci.yml.new`
-   - Review `nightly.yml.new` (activate or delete)
-
-2. **Complete backend deployment:**
-   - Replace placeholder steps in `deploy.yml` and `deploy-staging.yml`
-
-3. **Add dependency automation:**
-   - Configure Dependabot for npm and pip
-
-4. **Branch protection:**
-   - Configure required checks for main branch
-
-5. **Configure GitHub Secrets:**
-   - Add `VERCEL_TOKEN` (required)
-   - Add `VERCEL_ORG_ID` (recommended)
-   - Add `VERCEL_PROJECT_ID` (recommended)
-   - Add other env vars (see `docs/env-and-secrets.md`)
-
-### 📋 Action Items
-
-- [ ] Delete `ci.yml.new`
-- [ ] Review and activate/delete `nightly.yml.new`
-- [ ] Create `.github/dependabot.yml`
-- [ ] Configure branch protection rules
-- [ ] Complete backend deployment workflows
-- [ ] Configure GitHub Secrets (VERCEL_TOKEN, etc.)
-- [ ] Link Vercel project (or set VERCEL_PROJECT_ID secret)
-
----
-
-**Next Steps:** See individual workflow files for details on each CI job.
+**Last Updated:** 2024-12-XX
