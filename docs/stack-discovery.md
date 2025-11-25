@@ -1,276 +1,509 @@
-# Stack Discovery Report
+# Stack Discovery & Architecture Analysis
 
-**Generated:** 2024  
-**Purpose:** Complete inventory of the technology stack, infrastructure, and deployment patterns
-
----
+**Generated:** 2024-12-XX  
+**Status:** Complete Repository Diagnostic
 
 ## Executive Summary
 
-This is a **podcast analytics and sponsorship platform** with:
-- **Frontend:** Next.js 14 (React 18, TypeScript)
-- **Backend:** FastAPI (Python 3.11)
-- **Database:** PostgreSQL 15 with TimescaleDB extension
+This is a **Podcast Analytics & Sponsorship Platform** - a full-stack SaaS application built with:
+- **Frontend:** Next.js 14 (React 18) with TypeScript
+- **Backend:** FastAPI (Python 3.11+) with async/await
+- **Database:** PostgreSQL 15+ with TimescaleDB extension
 - **Cache:** Redis 7
-- **Frontend Hosting:** Vercel
-- **Backend Hosting:** Docker/Kubernetes (deployment target TBD)
+- **Hosting:** Vercel (frontend), Multiple options for backend (Fly.io, Kubernetes, Render)
+- **Monitoring:** Prometheus + Grafana
 - **CI/CD:** GitHub Actions
 
-The architecture supports multi-tenancy, real-time analytics, attribution tracking, and AI-powered features.
+## Architecture Overview
 
----
+```
+┌─────────────────────────────────────────────────────────────┐
+│                  Frontend (Next.js/Vercel)                   │
+│  - App Router (Next.js 14)                                   │
+│  - React 18 + TypeScript                                     │
+│  - TailwindCSS + HeadlessUI                                  │
+│  - TanStack Query (React Query)                              │
+│  - Zustand (State Management)                                │
+│  - Supabase Client (Auth/Storage)                            │
+└───────────────────────┬─────────────────────────────────────┘
+                        │ HTTPS/REST API
+┌───────────────────────▼─────────────────────────────────────┐
+│              Backend API (FastAPI/Python)                     │
+│  - FastAPI 0.104+                                             │
+│  - AsyncPG (PostgreSQL async driver)                         │
+│  - Redis (Caching/Sessions)                                  │
+│  - Pydantic (Validation)                                       │
+│  - OpenTelemetry (Tracing)                                    │
+│  - Prometheus (Metrics)                                       │
+└───────────────────────┬─────────────────────────────────────┘
+                        │
+        ┌───────────────┼───────────────┐
+        │               │               │
+┌───────▼──────┐ ┌──────▼──────┐ ┌──────▼──────┐
+│  PostgreSQL  │ │  TimescaleDB│ │    Redis    │
+│  (Relational)│ │ (Time-Series)│ │   (Cache)  │
+│              │ │              │ │            │
+│  - Multi-    │ │  - Listener  │ │  - Session │
+│    tenant    │ │    events    │ │  - Cache   │
+│  - Users     │ │  - Metrics   │ │  - Rate    │
+│  - Campaigns │ │  - Analytics │ │    limiting│
+│  - Episodes  │ │              │ │            │
+└──────────────┘ └──────────────┘ └────────────┘
+```
 
-## Frontend Stack
+## Technology Stack Details
 
-### Framework & Build
-- **Framework:** Next.js 14.0.0 (App Router)
-- **React:** 18.2.0
-- **TypeScript:** 5.2.0
-- **Build Tool:** Next.js built-in (Webpack)
-- **Package Manager:** npm (package-lock.json present)
+### Frontend Stack
 
-### Key Dependencies
-- `@tanstack/react-query` - Data fetching & caching
-- `zustand` - State management
-- `recharts` - Data visualization
-- `tailwindcss` - Styling
-- `@supabase/supabase-js` - Supabase client (optional, for auth/storage)
+**Framework & Core:**
+- Next.js 14.0+ (App Router)
+- React 18.2+
+- TypeScript 5.2+
+- Node.js 20+
 
-### Testing
-- Jest with React Testing Library
-- Playwright for E2E (configured but not actively used in CI)
+**UI & Styling:**
+- TailwindCSS 3.3+
+- HeadlessUI 1.7+
+- Heroicons 2.0+
+- Recharts 2.10+ (Charts)
 
-### Configuration
-- `next.config.js` - Next.js configuration
-- `vercel.json` - Vercel deployment configuration
-- Environment variables prefixed with `NEXT_PUBLIC_*` for client-side access
+**State & Data:**
+- TanStack Query 5.0+ (Server state)
+- Zustand 4.4+ (Client state)
+- Axios 1.6+ (HTTP client)
+- Supabase JS 2.39+ (Auth/Storage)
 
----
+**Testing:**
+- Jest 29.7+
+- React Testing Library 14.0+
+- Playwright 1.40+ (E2E)
 
-## Backend Stack
+### Backend Stack
 
-### Framework & Runtime
-- **Framework:** FastAPI 0.104.1
-- **Python:** 3.11
-- **ASGI Server:** Uvicorn
-- **Package Manager:** pip (requirements.txt)
+**Framework & Core:**
+- FastAPI 0.104+
+- Python 3.11+
+- Uvicorn 0.24+ (ASGI server)
+- Pydantic 2.5+ (Validation)
 
-### Key Dependencies
-- `pydantic` / `pydantic-settings` - Configuration & validation
-- `sqlalchemy` / `asyncpg` - Database ORM & async driver
-- `redis` - Caching
-- `stripe` - Payment processing
-- `sendgrid` - Email
-- `prometheus-client` - Metrics
-- `opentelemetry-*` - Observability
+**Database & Storage:**
+- AsyncPG 0.29+ (PostgreSQL async driver)
+- SQLAlchemy 2.0+ (ORM - if used)
+- Redis 5.0+ (Cache/Sessions)
+- TimescaleDB (Time-series extension)
 
-### Testing
-- pytest with pytest-asyncio
-- Coverage target: 50% minimum
+**Security & Auth:**
+- PyJWT 2.8+ (JWT tokens)
+- Passlib 1.7+ (Password hashing)
+- OAuth2 (Custom provider)
 
-### Code Quality
-- `ruff` - Linting & formatting (replaces flake8, black, isort)
-- `mypy` - Type checking
+**External Services:**
+- Stripe 7.0+ (Payments)
+- SendGrid 6.11+ (Email)
+- OpenAI/Anthropic (AI features)
 
----
+**Monitoring & Observability:**
+- Prometheus Client 0.19+
+- OpenTelemetry 1.21+ (Tracing)
+- Python JSON Logger 2.0+
 
-## Database & Persistence
+**Testing:**
+- Pytest 7.4+
+- Pytest-asyncio 0.21+
+- Pytest-cov 4.1+
 
-### Primary Database
-- **Type:** PostgreSQL 15
-- **Extension:** TimescaleDB (for time-series data)
-- **Connection:** SQLAlchemy with asyncpg driver
-- **Schema:** Multi-tenant architecture with comprehensive tables for:
-  - Tenants, users, podcasts, episodes
-  - Campaigns, attribution events, listener events
-  - AI features, cost tracking, security, compliance
+**Code Quality:**
+- Ruff 0.1+ (Linting/Formatting)
+- MyPy 1.7+ (Type checking)
 
-### Migration Strategy
-- **Approach:** SQL-based migrations (not Prisma, not Supabase migrations)
-- **Master Schema:** `db/migrations/99999999999999_master_schema.sql`
-  - Single idempotent migration file
-  - Consolidates all schema changes
-  - Safe to run multiple times
-- **Legacy Migrations:** Archived in `migrations_archive/` (001-030, plus dated folders)
-- **Scripts:**
-  - `scripts/db-migrate-local.sh` - Local development
-  - `scripts/db-migrate-hosted.sh` - Production/hosted databases
+### Infrastructure
 
-### Supabase Integration
-- **Status:** Optional/Partial
-- **Usage:** Can use Supabase-hosted Postgres OR self-hosted Postgres
-- **Config:** `supabase/config.toml` exists but minimal
-- **Client:** Frontend has `@supabase/supabase-js` installed
-- **Note:** Supabase is mentioned in README as recommended option, but migrations are SQL-based (not Supabase migration format)
+**Hosting:**
+- **Frontend:** Vercel (Serverless)
+- **Backend Options:**
+  - Fly.io (Docker containers)
+  - Kubernetes (k8s/)
+  - Render (render.yaml)
+  - Docker Compose (Local dev)
 
-### Cache
-- **Redis:** Version 7 (Alpine)
-- **Usage:** Caching, session storage, rate limiting
+**CI/CD:**
+- GitHub Actions
+- Multiple workflows:
+  - `ci.yml` - Lint, test, build
+  - `frontend-ci-deploy.yml` - Frontend deploy to Vercel
+  - `deploy-backend-*.yml` - Backend deployment options
+  - `db-migrate.yml` - Database migrations
+  - `e2e-tests.yml` - End-to-end tests
+  - `smoke-tests.yml` - Smoke tests
+  - `security-scan.yml` - Security scanning
 
----
+**Monitoring:**
+- Prometheus (Metrics)
+- Grafana (Dashboards)
+- Health check endpoints (`/health`, `/metrics`)
 
-## Infrastructure & Hosting
+**Database:**
+- PostgreSQL 15+ (Primary)
+- TimescaleDB extension (Time-series)
+- Redis 7+ (Cache)
 
-### Frontend Hosting
-- **Primary:** Vercel
-- **Config:** `vercel.json` present
-- **Deployment:** Via GitHub Actions (deploy.yml) or Vercel CLI
-- **Environment:** Preview deployments for PRs, production for main branch
+## Data Flow Architecture
 
-### Backend Hosting
-- **Container:** Docker (Dockerfile, Dockerfile.prod)
-- **Orchestration:** Kubernetes configs present (`k8s/deployment.yaml`)
-- **Registry:** Configurable (secrets: `CONTAINER_REGISTRY`, `REGISTRY_USERNAME`, `REGISTRY_PASSWORD`)
-- **Deployment Target:** TBD (Render, Fly.io, AWS ECS, GCP Cloud Run, etc.)
+### Request Flow
 
-### Local Development
-- **Docker Compose:** `docker-compose.yml` includes:
-  - PostgreSQL (TimescaleDB)
-  - Redis
-  - Prometheus
-  - Grafana
-- **Scripts:** `scripts/dev.sh` for starting/stopping services
+1. **User Request** → Next.js Frontend (Vercel)
+2. **API Call** → FastAPI Backend (via `NEXT_PUBLIC_API_URL`)
+3. **Authentication** → JWT validation, tenant isolation
+4. **Database Query** → PostgreSQL (relational) or TimescaleDB (time-series)
+5. **Cache Check** → Redis (if applicable)
+6. **Response** → JSON back to frontend
+7. **UI Update** → React Query cache update
 
----
+### Multi-Tenancy Flow
+
+1. Every request includes `tenant_id` (from JWT or context)
+2. All database queries filtered by `tenant_id`
+3. Tenant isolation enforced at:
+   - Database level (WHERE clauses)
+   - Application level (middleware)
+   - API level (route handlers)
+
+### Time-Series Data Flow
+
+1. **Listener Events** → `listener_events` hypertable (TimescaleDB)
+2. **Metrics Aggregation** → Continuous aggregates (TimescaleDB)
+3. **Analytics Queries** → Optimized time-series queries
+4. **Dashboard Display** → Aggregated metrics via API
+
+## Environment Variables
+
+### Required (Production)
+
+**Database:**
+- `DATABASE_URL` (PostgreSQL connection string) OR
+- `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_DATABASE`, `POSTGRES_USER`, `POSTGRES_PASSWORD`
+
+**Redis:**
+- `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD` (optional)
+
+**Security:**
+- `JWT_SECRET` (min 32 chars)
+- `ENCRYPTION_KEY` (min 32 chars)
+
+### Optional (Feature Flags)
+
+- `ENABLE_ETL_CSV_UPLOAD`
+- `ENABLE_MATCHMAKING`
+- `ENABLE_IO_BOOKINGS`
+- `ENABLE_DEAL_PIPELINE`
+- `ENABLE_NEW_DASHBOARD_CARDS`
+- `ENABLE_ORCHESTRATION`
+- `ENABLE_MONETIZATION`
+- `ENABLE_AUTOMATION_JOBS`
+
+### Frontend
+
+- `NEXT_PUBLIC_API_URL`
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `NEXT_PUBLIC_SITE_URL`
+
+## API Endpoints Structure
+
+### Core APIs (Always Available)
+
+- `/api/v1/auth/*` - Authentication
+- `/api/v1/billing/*` - Billing/Stripe
+- `/api/v1/campaigns/*` - Campaign management
+- `/api/v1/podcasts/*` - Podcast CRUD
+- `/api/v1/episodes/*` - Episode management
+- `/api/v1/sponsors/*` - Sponsor management
+- `/api/v1/reports/*` - Report generation
+- `/api/v1/analytics/*` - Analytics queries
+- `/api/v1/users/*` - User management
+- `/api/v1/tenants/*` - Tenant management
+- `/api/v1/attribution/*` - Attribution tracking
+- `/api/v1/ai/*` - AI features
+- `/api/v1/cost/*` - Cost tracking
+- `/api/v1/security/*` - Security features
+- `/api/v1/backup/*` - Backup/restore
+- `/api/v1/optimization/*` - A/B testing, churn
+- `/api/v1/monitoring/*` - Health/metrics
+- `/api/v1/features/*` - Feature flags
+
+### Feature-Flagged APIs
+
+- `/api/v1/etl/*` - CSV upload (if `ENABLE_ETL_CSV_UPLOAD=true`)
+- `/api/v1/match/*` - Matchmaking (if `ENABLE_MATCHMAKING=true`)
+- `/api/v1/io/*` - IO bookings (if `ENABLE_IO_BOOKINGS=true`)
+- `/api/v1/deals/*` - Deal pipeline (if `ENABLE_DEAL_PIPELINE=true`)
+- `/api/v1/dashboard/*` - New dashboard (if `ENABLE_NEW_DASHBOARD_CARDS=true`)
+- `/api/v1/automation/*` - Automation jobs (if `ENABLE_AUTOMATION_JOBS=true`)
+- `/api/v1/monetization/*` - Monetization (if `ENABLE_MONETIZATION=true`)
+- `/api/v1/orchestration/*` - Orchestration (if `ENABLE_ORCHESTRATION=true`)
+
+## Database Schema Overview
+
+### Core Tables
+
+- `tenants` - Multi-tenant foundation
+- `users` - User accounts (tenant-scoped)
+- `podcasts` - Podcast definitions
+- `episodes` - Episode metadata
+- `sponsors` - Sponsor/advertiser info
+- `campaigns` - Campaign definitions
+- `tenant_settings` - Tenant configuration (JSONB)
+- `tenant_quotas` - Tenant limits
+
+### Time-Series Tables (TimescaleDB Hypertables)
+
+- `listener_events` - Raw listener events
+- `attribution_events` - Attribution tracking events
+- `metrics_daily` - Daily aggregated metrics
+
+### Feature Tables
+
+- `io_bookings` - Insertion order bookings
+- `deals` - Deal pipeline
+- `matches` - Sponsor-podcast matches
+- `workflows` - Workflow definitions
+- `feature_flags` - Feature flag configuration
+
+## Dependency Hotspots
+
+### High-Gravity Modules (Most Imported)
+
+**Backend:**
+1. `src.config.settings` - Configuration (used everywhere)
+2. `src.database.postgres` - Database connection
+3. `src.telemetry.metrics` - Metrics collection
+4. `src.telemetry.events` - Event logging
+5. `src.tenants.tenant_manager` - Tenant isolation
+
+**Frontend:**
+1. `components/ui/*` - UI primitives
+2. `app/layout.tsx` - Root layout
+3. API client utilities
+
+### Circular Dependencies
+
+**Potential Issues:**
+- Check for circular imports between:
+  - `src.api.*` modules
+  - `src.services.*` modules
+  - `src.tenants.*` and `src.users.*`
+
+## Security Posture
+
+### Implemented
+
+✅ JWT-based authentication  
+✅ Multi-factor authentication (MFA)  
+✅ Role-based access control (RBAC)  
+✅ Attribute-based access control (ABAC)  
+✅ API key management  
+✅ Rate limiting  
+✅ CORS configuration  
+✅ Security headers middleware  
+✅ WAF middleware  
+✅ CSRF protection  
+✅ Password hashing (bcrypt)  
+✅ Tenant isolation  
+✅ Audit logging  
+
+### Areas for Enhancement
+
+⚠️ Input sanitization (verify all endpoints)  
+⚠️ SQL injection protection (verify parameterized queries)  
+⚠️ File upload validation (if applicable)  
+⚠️ Secrets scanning in CI  
+⚠️ Dependency vulnerability scanning  
+
+## Performance Considerations
+
+### Optimizations Implemented
+
+✅ Connection pooling (PostgreSQL, Redis)  
+✅ Read replicas support (PostgreSQL)  
+✅ Redis caching layer  
+✅ TimescaleDB for time-series (chunking, compression)  
+✅ Code splitting (Next.js webpack config)  
+✅ Image optimization (Next.js)  
+✅ Prometheus metrics collection  
+
+### Potential Bottlenecks
+
+⚠️ Database query optimization (need query analysis)  
+⚠️ N+1 query patterns (verify with tests)  
+⚠️ Frontend bundle size (analyze with webpack-bundle-analyzer)  
+⚠️ API response times (add latency monitoring)  
+⚠️ Cache hit rates (monitor Redis)  
 
 ## CI/CD Pipeline
 
-### GitHub Actions Workflows
+### Workflows
 
-#### Active Workflows
-1. **`.github/workflows/ci.yml`**
-   - Triggers: PRs and pushes to main/develop
-   - Jobs:
-     - `lint-backend` - Ruff + mypy
-     - `lint-frontend` - ESLint + TypeScript check
-     - `test-backend` - pytest with coverage
-     - `test-frontend` - Jest
-     - `build-backend` - Docker build verification
-     - `build-frontend` - Next.js build
+1. **ci.yml** - Main CI pipeline
+   - Lint backend (ruff, mypy)
+   - Lint frontend (ESLint, TypeScript)
+   - Test backend (pytest with coverage)
+   - Test frontend (Jest)
+   - Build backend (Docker)
+   - Build frontend (Next.js)
 
-2. **`.github/workflows/deploy.yml`**
-   - Triggers: Push to main, workflow_dispatch
-   - Environment: production
-   - Steps:
-     - Run migrations (Supabase/hosted)
-     - Build & push Docker image
-     - Deploy frontend to Vercel
-     - Deploy backend (placeholder)
-     - Smoke tests (placeholder)
+2. **frontend-ci-deploy.yml** - Frontend deployment
+   - Build and test
+   - Deploy preview (PR)
+   - Deploy production (main branch)
 
-3. **`.github/workflows/deploy-staging.yml`**
-   - Triggers: Push to develop, workflow_dispatch
-   - Environment: staging
-   - Similar to production but for staging
+3. **db-migrate.yml** - Database migrations
+   - Validate migrations
+   - Test migrations
 
-4. **`.github/workflows/test-migrations.yml`**
-   - Triggers: PRs affecting migrations, workflow_dispatch
-   - Tests migration files against a test database
+4. **e2e-tests.yml** - End-to-end tests
+   - Playwright tests
 
-#### Other Workflows (Status Unclear)
-- `aurora-doctor.yml` - Health check automation
-- `e2e-tests.yml` - End-to-end tests (not actively used)
-- `nightly.yml` / `nightly.yml.new` - Nightly builds (may be obsolete)
+5. **smoke-tests.yml** - Smoke tests
+   - Health checks
+   - Critical path validation
 
-### CI Environment
-- **Python:** 3.11
-- **Node:** 20
-- **OS:** ubuntu-latest
-- **Services:** PostgreSQL 15, Redis 7 (for test-backend job)
+6. **security-scan.yml** - Security scanning
+   - Dependency vulnerabilities
+   - Code security issues
+
+### Deployment Strategies
+
+- **Frontend:** Vercel (automatic on push to main)
+- **Backend:** Multiple options:
+  - Fly.io (Docker)
+  - Kubernetes (k8s/)
+  - Render (render.yaml)
+
+## Risk Heatmap
+
+### 🔴 Critical Risks
+
+1. **Database Migration Safety**
+   - Single master migration file (`99999999999999_master_schema.sql`)
+   - Need incremental migration strategy for production
+   - Risk: Schema drift between environments
+
+2. **Environment Variable Drift**
+   - Many optional variables
+   - Risk: Missing configs in production
+   - Solution: Env validation script needed
+
+3. **Feature Flag Management**
+   - Flags control critical features
+   - Risk: Misconfiguration could disable core features
+   - Solution: Feature flag validation
+
+### 🟡 Medium Risks
+
+1. **Multi-Environment Parity**
+   - DEV/STAGING/PROD alignment
+   - Risk: Environment-specific bugs
+   - Solution: Environment parity checker
+
+2. **Test Coverage**
+   - Backend: 50% minimum (CI enforced)
+   - Frontend: Coverage check exists but not enforced
+   - Risk: Regression bugs
+   - Solution: Increase coverage thresholds
+
+3. **Dependency Updates**
+   - Many dependencies
+   - Risk: Security vulnerabilities
+   - Solution: Automated dependency updates
+
+### 🟢 Low Risks
+
+1. **Documentation Sync**
+   - Extensive docs exist
+   - Risk: Docs drift from code
+   - Solution: Auto-sync scripts
+
+2. **Code Quality**
+   - Linting and type checking enforced
+   - Risk: Technical debt accumulation
+   - Solution: Regular refactoring
+
+## Misalignments & Issues Found
+
+### 1. Database Connection String Handling
+
+**Issue:** Code supports both `DATABASE_URL` and individual `POSTGRES_*` vars, but validation may not handle both paths consistently.
+
+**Impact:** Medium - Could cause deployment issues
+
+**Fix:** Ensure `src/config/validation.py` handles `DATABASE_URL` parsing correctly.
+
+### 2. Frontend API URL Configuration
+
+**Issue:** `NEXT_PUBLIC_API_URL` hardcoded in some places, should use env var consistently.
+
+**Impact:** Low - Works but not flexible
+
+**Fix:** Audit all API calls to use env var.
+
+### 3. Migration Strategy
+
+**Issue:** Single master migration file is good for greenfield, but needs incremental strategy for production.
+
+**Impact:** High - Production migrations risky
+
+**Fix:** Create incremental migration system.
+
+### 4. Feature Flag Defaults
+
+**Issue:** Many features disabled by default, but some may be needed for core functionality.
+
+**Impact:** Medium - Could block core features
+
+**Fix:** Review feature flags, enable core features by default.
+
+### 5. Test Environment Setup
+
+**Issue:** Tests require full database setup, may be slow.
+
+**Impact:** Low - Works but could be faster
+
+**Fix:** Consider test database fixtures or mocks.
+
+## Safe Fixes to Apply
+
+1. ✅ **Environment Variable Validation Script**
+   - Create `scripts/env-doctor.ts` to validate env vars
+
+2. ✅ **Schema Validator Script**
+   - Create `scripts/db-validate-schema.ts` to validate DB schema
+
+3. ✅ **API Documentation Generator**
+   - Generate OpenAPI spec from FastAPI
+   - Create `docs/api.md` from OpenAPI
+
+4. ✅ **Dependency Health Check**
+   - Audit dependencies for vulnerabilities
+   - Update outdated packages
+
+5. ✅ **CI/CD Improvements**
+   - Ensure all workflows run correctly
+   - Add missing checks
+
+## Next Steps
+
+1. Generate complete API documentation (Mode 4)
+2. Create environment variable doctor script (Mode 5)
+3. Optimize database queries and indexes (Mode 6)
+4. Harden deployment workflows (Mode 7)
+5. Enhance test coverage (Mode 13)
+6. Add observability instrumentation (Mode 14)
+7. Security audit (Mode 15)
+8. Performance optimization (Mode 16)
+9. Developer experience improvements (Mode 17)
+10. Documentation automation (Mode 18)
 
 ---
 
-## Environment Variables & Secrets
-
-### Configuration Files
-- `.env.example` - Comprehensive template with all variables
-- `.env.staging` - Staging-specific overrides (if needed)
-
-### Categories
-1. **Database:** `DATABASE_URL` or individual `POSTGRES_*` vars
-2. **Redis:** `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD`
-3. **Security:** `JWT_SECRET`, `ENCRYPTION_KEY`
-4. **Supabase:** `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_ANON_KEY`
-5. **Frontend:** `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_SUPABASE_URL`, etc.
-6. **External Services:** Stripe, SendGrid, AWS, etc.
-7. **Feature Flags:** `ENABLE_*` variables for toggling features
-
-### Secrets Management
-- **GitHub Secrets:** Used in CI workflows
-- **Vercel:** Environment variables set in dashboard
-- **Backend Hosting:** TBD (will need secrets for DB, Redis, etc.)
-
----
-
-## Notable Gaps & Red Flags
-
-### 🔴 Critical Issues
-1. **Migration Workflow:** 
-   - Migrations are SQL-based but deploy workflows reference `scripts/init_db.py` which may not exist
-   - No clear CI path for validating migrations before deploy
-   - Master schema approach is good but needs better orchestration
-
-2. **Backend Deployment:**
-   - Deploy workflows have placeholder steps ("Add actual deployment commands")
-   - No clear production backend hosting target
-
-3. **Supabase Integration:**
-   - Supabase is mentioned but migrations aren't Supabase-native
-   - Frontend has Supabase client but unclear if auth/storage are used
-   - Need to decide: Supabase-hosted Postgres OR self-hosted Postgres
-
-### ⚠️ Medium Priority
-4. **Package Manager Lock:**
-   - Frontend uses npm (package-lock.json)
-   - Backend uses pip (requirements.txt, no Pipfile.lock)
-   - Should pin Node version in package.json engines
-
-5. **Test Coverage:**
-   - Backend coverage target is 50% (reasonable but could be higher)
-   - Frontend tests exist but coverage not enforced in CI
-
-6. **Obsolete Workflows:**
-   - `nightly.yml.new`, `ci.yml.new` suggest incomplete migrations
-   - `e2e-tests.yml` exists but not integrated into PR checks
-
-### ✅ Good Practices Found
-- Comprehensive `.env.example`
-- Docker Compose for local dev
-- Health check endpoints (`/health`, `/metrics`)
-- Multi-stage Dockerfile for production
-- Idempotent migrations
-- CI runs lint, test, build on PRs
-
----
-
-## Business Intent
-
-### Primary Use Case
-**Podcast Analytics & Sponsorship Platform**
-
-### User Flows
-1. **Podcasters:** Track listener behavior, prove ROI to sponsors, automate reporting
-2. **Podcast Networks:** Manage multiple shows, match advertisers, unified reporting
-3. **Agencies:** Onboard clients, demonstrate ROI, scale operations
-4. **Advertisers:** Find matching podcasts, track campaign performance
-
-### App Type
-- **Dashboard-heavy:** Analytics, campaign management, attribution tracking
-- **API-first:** FastAPI backend with comprehensive REST APIs
-- **Multi-tenant:** Isolated data per organization
-- **Real-time:** Time-series data with TimescaleDB
-
----
-
-## Recommendations
-
-1. **Choose Backend Hosting:** Decide on Render, Fly.io, AWS, or other and complete deployment workflows
-2. **Clarify Supabase:** Either commit to Supabase-hosted Postgres OR remove Supabase references
-3. **Normalize Migrations:** Create a CI workflow that validates migrations before deploy
-4. **Complete Deployment:** Replace placeholder steps in deploy workflows
-5. **Add Smoke Tests:** Implement actual smoke tests for production deployments
-6. **Clean Up Workflows:** Remove or complete obsolete workflows (`nightly.yml.new`, etc.)
-
----
-
-**Next Steps:** See `docs/backend-strategy.md` and `docs/frontend-hosting-strategy.md` for detailed recommendations.
+**Last Updated:** 2024-12-XX  
+**Status:** ✅ Diagnostic Complete - Proceeding with Mode 2-30

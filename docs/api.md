@@ -1,83 +1,55 @@
 # API Documentation
 
-**Last Updated:** 2024-12  
-**API Version:** v1  
-**Base URL:** `https://api.castor.app/api/v1` (production) or `http://localhost:8000/api/v1` (local)
+**Base URL:** `http://localhost:8000` (development)  
+**Production URL:** Configure via `NEXT_PUBLIC_API_URL`
 
----
+This document provides a comprehensive reference for all API endpoints.
 
-## Overview
+## Authentication
 
-The Podcast Analytics & Sponsorship Platform API is a RESTful API built with FastAPI. All endpoints return JSON and follow standard HTTP status codes.
-
-### Authentication
-
-Most endpoints require authentication via JWT Bearer tokens. Include the token in the `Authorization` header:
+All endpoints (except `/api/v1/auth/*`) require authentication via JWT token in the `Authorization` header:
 
 ```
-Authorization: Bearer <your-access-token>
+Authorization: Bearer <jwt_token>
 ```
 
-### Base Endpoints
+## Response Format
 
-- **Production:** `https://api.castor.app/api/v1`
-- **Staging:** `https://api-staging.castor.app/api/v1`
-- **Local:** `http://localhost:8000/api/v1`
-
-### OpenAPI Documentation
-
-Interactive API documentation is available at:
-- **Swagger UI:** `/api/docs`
-- **ReDoc:** `/api/redoc`
-- **OpenAPI JSON:** `/api/openapi.json`
-
----
-
-## Core Endpoints
-
-### Health & Status
-
-#### `GET /health`
-
-Health check endpoint with comprehensive system status.
-
-**Response:**
+### Success Response
 ```json
 {
-  "status": "healthy",
-  "timestamp": "2024-12-01T12:00:00Z",
-  "checks": [
-    {
-      "name": "database",
-      "status": "healthy",
-      "message": "Connection successful",
-      "latency_ms": 5
-    },
-    {
-      "name": "redis",
-      "status": "healthy",
-      "message": "Connection successful",
-      "latency_ms": 2
-    }
-  ]
+  "data": { ... },
+  "message": "Success message"
 }
 ```
 
-**Status Codes:**
-- `200` - Healthy or degraded
-- `503` - Unhealthy
+### Error Response
+```json
+{
+  "error": "Error message",
+  "code": "ERROR_CODE",
+  "details": { ... }
+}
+```
 
-#### `GET /metrics`
+## Status Codes
 
-Prometheus metrics endpoint.
-
-**Response:** Prometheus metrics format
+- `200 OK` - Request successful
+- `201 Created` - Resource created successfully created
+- `204 No Content` - Request successful, no content to return
+- `400 Bad Request` - Invalid request parameters
+- `401 Unauthorized` - Authentication required or invalid token
+- `403 Forbidden` - Insufficient permissions
+- `404 Not Found` - Resource not found
+- `422 Unprocessable Entity` - Validation error
+- `500 Internal Server Error` - Server error
+- `503 Service Unavailable` - Service temporarily unavailable
 
 ---
 
 ## Authentication Endpoints
 
-### `POST /api/v1/auth/register`
+### POST `/api/v1/auth/register`
 
 Register a new user account.
 
@@ -85,7 +57,7 @@ Register a new user account.
 ```json
 {
   "email": "user@example.com",
-  "password": "SecurePassword123!",
+  "password": "SecurePass123",
   "name": "John Doe",
   "accept_terms": true,
   "accept_privacy": true
@@ -97,61 +69,124 @@ Register a new user account.
 {
   "user_id": "uuid",
   "email": "user@example.com",
-  "name": "John Doe",
-  "email_verified": false
+  "message": "Registration successful. Please verify your email."
 }
 ```
 
-**Validation:**
-- Password: Minimum 8 characters, must contain uppercase, lowercase, and number
-- Email: Valid email format
-- Terms and privacy acceptance required
+### POST `/api/v1/auth/login`
 
-### `POST /api/v1/auth/login`
-
-Login and get access token.
+Authenticate user and receive JWT token.
 
 **Request Body:**
 ```json
 {
   "email": "user@example.com",
-  "password": "SecurePassword123!"
+  "password": "SecurePass123"
 }
 ```
 
 **Response:** `200 OK`
 ```json
 {
-  "access_token": "jwt-token",
-  "refresh_token": "refresh-token",
+  "access_token": "jwt_token",
+  "refresh_token": "refresh_token",
   "token_type": "bearer",
-  "expires_in": 3600
+  "expires_in": 3600,
+  "user": {
+    "user_id": "uuid",
+    "email": "user@example.com",
+    "name": "John Doe"
+  }
 }
 ```
 
-### `POST /api/v1/auth/refresh`
+### POST `/api/v1/auth/logout`
+
+Logout current user (invalidate refresh token).
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response:** `200 OK`
+
+### POST `/api/v1/auth/verify-email`
+
+Verify email address with verification token.
+
+**Request Body:**
+```json
+{
+  "token": "verification_token"
+}
+```
+
+**Response:** `200 OK`
+
+### POST `/api/v1/auth/reset-password-request`
+
+Request password reset email.
+
+**Request Body:**
+```json
+{
+  "email": "user@example.com"
+}
+```
+
+**Response:** `200 OK`
+
+### POST `/api/v1/auth/reset-password`
+
+Reset password with reset token.
+
+**Request Body:**
+```json
+{
+  "token": "reset_token",
+  "new_password": "NewSecurePass123"
+}
+```
+
+**Response:** `200 OK`
+
+### POST `/api/v1/auth/change-password`
+
+Change password (requires authentication).
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Request Body:**
+```json
+{
+  "current_password": "OldPass123",
+  "new_password": "NewSecurePass123"
+}
+```
+
+**Response:** `200 OK`
+
+### POST `/api/v1/auth/refresh`
 
 Refresh access token using refresh token.
 
 **Request Body:**
 ```json
 {
-  "refresh_token": "refresh-token"
+  "refresh_token": "refresh_token"
 }
 ```
 
 **Response:** `200 OK`
 ```json
 {
-  "access_token": "new-jwt-token",
+  "access_token": "new_jwt_token",
   "token_type": "bearer",
   "expires_in": 3600
 }
 ```
 
-### `GET /api/v1/auth/me`
+### GET `/api/v1/auth/me`
 
-Get current user information.
+Get current authenticated user information.
 
 **Headers:** `Authorization: Bearer <token>`
 
@@ -161,48 +196,88 @@ Get current user information.
   "user_id": "uuid",
   "email": "user@example.com",
   "name": "John Doe",
-  "email_verified": true,
-  "created_at": "2024-12-01T12:00:00Z"
+  "tenant_id": "uuid",
+  "email_verified": true
 }
 ```
 
-### `POST /api/v1/auth/logout`
+---
 
-Logout and invalidate tokens.
+## Tenant Management
+
+### POST `/api/v1/tenants/`
+
+Create a new tenant (organization).
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Request Body:**
+```json
+{
+  "name": "Acme Corp",
+  "slug": "acme-corp",
+  "domain": "acme.example.com",
+  "subscription_tier": "free",
+  "billing_email": "billing@acme.com"
+}
+```
+
+**Response:** `201 Created`
+```json
+{
+  "tenant_id": "uuid",
+  "name": "Acme Corp",
+  "slug": "acme-corp",
+  "subscription_tier": "free",
+  "status": "active",
+  "created_at": "2024-01-01T00:00:00Z"
+}
+```
+
+### GET `/api/v1/tenants/{tenant_id}`
+
+Get tenant information.
 
 **Headers:** `Authorization: Bearer <token>`
 
 **Response:** `200 OK`
 
----
+### PUT `/api/v1/tenants/{tenant_id}`
 
-## Podcasts Endpoints
-
-### `GET /api/v1/podcasts`
-
-List all podcasts for the authenticated user.
+Update tenant information.
 
 **Headers:** `Authorization: Bearer <token>`
 
-**Query Parameters:**
-- `limit` (optional): Number of results (default: 20, max: 100)
-- `offset` (optional): Pagination offset (default: 0)
+**Request Body:**
+```json
+{
+  "name": "Updated Name",
+  "subscription_tier": "pro"
+}
+```
+
+**Response:** `200 OK`
+
+### GET `/api/v1/tenants/{tenant_id}/quota/{quota_type}`
+
+Get tenant quota information.
+
+**Headers:** `Authorization: Bearer <token>`
 
 **Response:** `200 OK`
 ```json
-[
-  {
-    "id": "uuid",
-    "name": "My Podcast",
-    "description": "Podcast description",
-    "rss_feed_url": "https://example.com/feed.xml",
-    "website_url": "https://example.com",
-    "created_at": "2024-12-01T12:00:00Z"
-  }
-]
+{
+  "quota_type": "max_users",
+  "current": 5,
+  "limit": 10
+}
 ```
 
-### `POST /api/v1/podcasts`
+---
+
+## Podcast Management
+
+### POST `/api/v1/podcasts`
 
 Create a new podcast.
 
@@ -221,55 +296,61 @@ Create a new podcast.
 **Response:** `201 Created`
 ```json
 {
-  "id": "uuid",
+  "podcast_id": "uuid",
   "name": "My Podcast",
-  "description": "Podcast description",
   "rss_feed_url": "https://example.com/feed.xml",
-  "website_url": "https://example.com",
-  "created_at": "2024-12-01T12:00:00Z"
+  "created_at": "2024-01-01T00:00:00Z"
 }
 ```
 
-### `GET /api/v1/podcasts/{podcast_id}`
+### GET `/api/v1/podcasts`
+
+List all podcasts for current tenant.
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Query Parameters:**
+- `limit` (optional): Number of results (default: 50)
+- `offset` (optional): Pagination offset (default: 0)
+
+**Response:** `200 OK`
+```json
+[
+  {
+    "podcast_id": "uuid",
+    "name": "My Podcast",
+    "rss_feed_url": "https://example.com/feed.xml"
+  }
+]
+```
+
+### GET `/api/v1/podcasts/{podcast_id}`
 
 Get podcast details.
 
 **Headers:** `Authorization: Bearer <token>`
 
 **Response:** `200 OK`
-```json
-{
-  "id": "uuid",
-  "name": "My Podcast",
-  "description": "Podcast description",
-  "rss_feed_url": "https://example.com/feed.xml",
-  "website_url": "https://example.com",
-  "created_at": "2024-12-01T12:00:00Z",
-  "updated_at": "2024-12-01T12:00:00Z"
-}
-```
 
-### `PUT /api/v1/podcasts/{podcast_id}`
+### PUT `/api/v1/podcasts/{podcast_id}`
 
-Update podcast.
+Update podcast information.
 
 **Headers:** `Authorization: Bearer <token>`
 
-**Request Body:** (all fields optional)
+**Request Body:**
 ```json
 {
-  "name": "Updated Name",
-  "description": "Updated description",
-  "rss_feed_url": "https://example.com/new-feed.xml",
-  "website_url": "https://example.com/new"
+  "name": "Updated Podcast Name",
+  "description": "Updated description"
 }
 ```
 
-**Response:** `200 OK` (updated podcast object)
+**Response:** `200 OK`
 
-### `DELETE /api/v1/podcasts/{podcast_id}`
+### DELETE `/api/v1/podcasts/{podcast_id}`
 
-Delete podcast.
+Delete a podcast.
 
 **Headers:** `Authorization: Bearer <token>`
 
@@ -277,35 +358,9 @@ Delete podcast.
 
 ---
 
-## Episodes Endpoints
+## Episode Management
 
-### `GET /api/v1/episodes`
-
-List episodes for a podcast.
-
-**Headers:** `Authorization: Bearer <token>`
-
-**Query Parameters:**
-- `podcast_id` (required): Podcast UUID
-- `limit` (optional): Number of results (default: 20)
-- `offset` (optional): Pagination offset (default: 0)
-
-**Response:** `200 OK`
-```json
-[
-  {
-    "id": "uuid",
-    "podcast_id": "uuid",
-    "title": "Episode Title",
-    "description": "Episode description",
-    "published_at": "2024-12-01T12:00:00Z",
-    "duration_seconds": 3600,
-    "audio_url": "https://example.com/episode.mp3"
-  }
-]
-```
-
-### `POST /api/v1/episodes`
+### POST `/api/v1/episodes`
 
 Create a new episode.
 
@@ -317,45 +372,57 @@ Create a new episode.
   "podcast_id": "uuid",
   "title": "Episode Title",
   "description": "Episode description",
-  "published_at": "2024-12-01T12:00:00Z",
+  "episode_number": 1,
+  "published_at": "2024-01-01T00:00:00Z",
   "duration_seconds": 3600,
   "audio_url": "https://example.com/episode.mp3"
 }
 ```
 
-**Response:** `201 Created` (episode object)
+**Response:** `201 Created`
 
----
+### GET `/api/v1/episodes`
 
-## Campaigns Endpoints
-
-### `GET /api/v1/campaigns`
-
-List all campaigns.
+List episodes.
 
 **Headers:** `Authorization: Bearer <token>`
 
 **Query Parameters:**
-- `status` (optional): Filter by status (`active`, `paused`, `completed`)
-- `limit` (optional): Number of results (default: 20)
-- `offset` (optional): Pagination offset (default: 0)
+- `podcast_id` (optional): Filter by podcast
+- `limit` (optional): Number of results
+- `offset` (optional): Pagination offset
 
 **Response:** `200 OK`
-```json
-[
-  {
-    "id": "uuid",
-    "name": "Campaign Name",
-    "status": "active",
-    "start_date": "2024-12-01",
-    "end_date": "2024-12-31",
-    "budget": 10000.00,
-    "spent": 5000.00
-  }
-]
-```
 
-### `POST /api/v1/campaigns`
+### GET `/api/v1/episodes/{episode_id}`
+
+Get episode details.
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response:** `200 OK`
+
+### PUT `/api/v1/episodes/{episode_id}`
+
+Update episode information.
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response:** `200 OK`
+
+### DELETE `/api/v1/episodes/{episode_id}`
+
+Delete an episode.
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response:** `204 No Content`
+
+---
+
+## Campaign Management
+
+### POST `/api/v1/campaigns`
 
 Create a new campaign.
 
@@ -364,99 +431,89 @@ Create a new campaign.
 **Request Body:**
 ```json
 {
+  "sponsor_id": "uuid",
   "name": "Campaign Name",
-  "start_date": "2024-12-01",
+  "description": "Campaign description",
+  "start_date": "2024-01-01",
   "end_date": "2024-12-31",
-  "budget": 10000.00,
-  "target_audience": "tech-savvy professionals"
+  "stage": "draft"
 }
 ```
 
-**Response:** `201 Created` (campaign object)
+**Response:** `201 Created`
 
----
+### GET `/api/v1/campaigns`
 
-## Analytics Endpoints
-
-### `GET /api/v1/analytics/listener-events`
-
-Get listener events for time-series analysis.
+List campaigns.
 
 **Headers:** `Authorization: Bearer <token>`
 
 **Query Parameters:**
-- `podcast_id` (optional): Filter by podcast
-- `episode_id` (optional): Filter by episode
-- `start_date` (required): ISO 8601 date
-- `end_date` (required): ISO 8601 date
-- `granularity` (optional): `hour`, `day`, `week`, `month` (default: `day`)
+- `sponsor_id` (optional): Filter by sponsor
+- `stage` (optional): Filter by stage (draft, active, paused, completed, cancelled)
+- `limit` (optional): Number of results
+- `offset` (optional): Pagination offset
 
 **Response:** `200 OK`
-```json
-{
-  "data": [
-    {
-      "timestamp": "2024-12-01T00:00:00Z",
-      "listeners": 150,
-      "plays": 200,
-      "completions": 120
-    }
-  ],
-  "summary": {
-    "total_listeners": 150,
-    "total_plays": 200,
-    "completion_rate": 0.6
-  }
-}
-```
 
-### `GET /api/v1/analytics/attribution`
+### GET `/api/v1/campaigns/{campaign_id}`
 
-Get attribution analytics.
+Get campaign details.
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response:** `200 OK`
+
+### PUT `/api/v1/campaigns/{campaign_id}`
+
+Update campaign.
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response:** `200 OK`
+
+### DELETE `/api/v1/campaigns/{campaign_id}`
+
+Delete a campaign.
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response:** `204 No Content`
+
+### POST `/api/v1/campaigns/{campaign_id}/duplicate`
+
+Duplicate a campaign.
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response:** `201 Created`
+
+### GET `/api/v1/campaigns/{campaign_id}/analytics`
+
+Get campaign analytics.
 
 **Headers:** `Authorization: Bearer <token>`
 
 **Query Parameters:**
-- `campaign_id` (required): Campaign UUID
-- `start_date` (required): ISO 8601 date
-- `end_date` (required): ISO 8601 date
+- `start_date` (optional): Start date for analytics
+- `end_date` (optional): End date for analytics
 
 **Response:** `200 OK`
 ```json
 {
   "campaign_id": "uuid",
-  "impressions": 10000,
-  "clicks": 500,
-  "conversions": 50,
-  "roi": 2.5,
-  "attribution_events": [...]
+  "total_listeners": 1000,
+  "total_impressions": 5000,
+  "conversion_rate": 0.05,
+  "roi": 2.5
 }
 ```
 
 ---
 
-## Sponsors Endpoints
+## Sponsor Management
 
-### `GET /api/v1/sponsors`
-
-List all sponsors.
-
-**Headers:** `Authorization: Bearer <token>`
-
-**Response:** `200 OK`
-```json
-[
-  {
-    "id": "uuid",
-    "name": "Sponsor Name",
-    "company": "Company Name",
-    "email": "sponsor@example.com",
-    "created_at": "2024-12-01T12:00:00Z"
-  }
-]
-```
-
-### `POST /api/v1/sponsors`
+### POST `/api/v1/sponsors`
 
 Create a new sponsor.
 
@@ -466,124 +523,314 @@ Create a new sponsor.
 ```json
 {
   "name": "Sponsor Name",
-  "company": "Company Name",
-  "email": "sponsor@example.com",
-  "phone": "+1234567890"
+  "website_url": "https://sponsor.com",
+  "logo_url": "https://sponsor.com/logo.png"
 }
 ```
 
-**Response:** `201 Created` (sponsor object)
+**Response:** `201 Created`
+
+### GET `/api/v1/sponsors`
+
+List sponsors.
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response:** `200 OK`
+
+### GET `/api/v1/sponsors/{sponsor_id}`
+
+Get sponsor details.
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response:** `200 OK`
+
+### PUT `/api/v1/sponsors/{sponsor_id}`
+
+Update sponsor information.
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response:** `200 OK`
+
+### DELETE `/api/v1/sponsors/{sponsor_id}`
+
+Delete a sponsor.
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response:** `204 No Content`
 
 ---
 
-## Error Responses
+## Analytics Endpoints
+
+### GET `/api/v1/analytics/listeners`
+
+Get listener analytics.
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Query Parameters:**
+- `episode_id` (optional): Filter by episode
+- `start_date` (required): Start date (ISO 8601)
+- `end_date` (required): End date (ISO 8601)
+- `granularity` (optional): daily, hourly, weekly (default: daily)
+
+**Response:** `200 OK`
+```json
+{
+  "data": [
+    {
+      "date": "2024-01-01",
+      "listeners": 100,
+      "unique_listeners": 80,
+      "completion_rate": 0.75
+    }
+  ]
+}
+```
+
+### GET `/api/v1/analytics/attribution`
+
+Get attribution analytics.
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Query Parameters:**
+- `campaign_id` (required): Campaign ID
+- `start_date` (required): Start date
+- `end_date` (required): End date
+- `model` (optional): first_touch, last_touch, linear, time_decay, position_based
+
+**Response:** `200 OK`
+
+---
+
+## Attribution Endpoints
+
+### POST `/api/v1/attribution/track`
+
+Track an attribution event.
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Request Body:**
+```json
+{
+  "campaign_id": "uuid",
+  "episode_id": "uuid",
+  "listener_id": "listener_123",
+  "attribution_type": "click",
+  "attribution_data": {
+    "url": "https://example.com",
+    "timestamp": "2024-01-01T00:00:00Z"
+  }
+}
+```
+
+**Response:** `201 Created`
+
+### GET `/api/v1/attribution/roi`
+
+Calculate ROI for a campaign.
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Query Parameters:**
+- `campaign_id` (required): Campaign ID
+- `start_date` (required): Start date
+- `end_date` (required): End date
+- `model` (optional): Attribution model
+
+**Response:** `200 OK`
+```json
+{
+  "campaign_id": "uuid",
+  "total_revenue": 10000,
+  "total_cost": 5000,
+  "roi": 2.0,
+  "roi_percentage": 100
+}
+```
+
+---
+
+## Cost Tracking
+
+### POST `/api/v1/cost/allocate`
+
+Allocate cost to a tenant/resource.
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Request Body:**
+```json
+{
+  "tenant_id": "uuid",
+  "resource_type": "api_calls",
+  "amount": 100,
+  "unit": "requests"
+}
+```
+
+**Response:** `201 Created`
+
+### GET `/api/v1/cost/`
+
+Get cost tracking information.
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Query Parameters:**
+- `tenant_id` (optional): Filter by tenant
+- `start_date` (optional): Start date
+- `end_date` (optional): End date
+
+**Response:** `200 OK`
+
+---
+
+## Feature Flags
+
+### GET `/api/v1/features`
+
+List all feature flags.
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response:** `200 OK`
+```json
+[
+  {
+    "name": "enable_matchmaking",
+    "enabled": false,
+    "description": "Enable matchmaking feature"
+  }
+]
+```
+
+### GET `/api/v1/features/{feature_name}`
+
+Get feature flag status.
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response:** `200 OK`
+
+### PUT `/api/v1/features/{feature_name}`
+
+Update feature flag.
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Request Body:**
+```json
+{
+  "enabled": true
+}
+```
+
+**Response:** `200 OK`
+
+---
+
+## Monitoring & Health
+
+### GET `/health`
+
+Health check endpoint (no authentication required).
+
+**Response:** `200 OK`
+```json
+{
+  "status": "healthy",
+  "timestamp": "2024-01-01T00:00:00Z",
+  "checks": [
+    {
+      "name": "database",
+      "status": "healthy",
+      "latency_ms": 5
+    },
+    {
+      "name": "redis",
+      "status": "healthy",
+      "latency_ms": 2
+    }
+  ]
+}
+```
+
+### GET `/metrics`
+
+Prometheus metrics endpoint (no authentication required).
+
+**Response:** `200 OK` (Prometheus format)
+
+---
+
+## Rate Limiting
+
+API endpoints are rate-limited:
+- **Per minute:** 60 requests
+- **Per hour:** 1,000 requests
+- **Per day:** 10,000 requests
+
+Rate limit headers are included in responses:
+- `X-RateLimit-Limit`: Maximum requests allowed
+- `X-RateLimit-Remaining`: Remaining requests
+- `X-RateLimit-Reset`: Time when limit resets
+
+---
+
+## Pagination
+
+List endpoints support pagination via query parameters:
+- `limit`: Number of results per page (default: 50, max: 100)
+- `offset`: Number of results to skip (default: 0)
+
+**Example:**
+```
+GET /api/v1/podcasts?limit=20&offset=40
+```
+
+---
+
+## Error Handling
 
 All errors follow this format:
 
 ```json
 {
-  "detail": "Error message",
+  "error": "Error message",
   "code": "ERROR_CODE",
-  "field": "field_name" // Optional, for validation errors
+  "details": {
+    "field": "Additional error details"
+  }
 }
 ```
 
-### Common Status Codes
-
-- `400 Bad Request` - Invalid request data
-- `401 Unauthorized` - Missing or invalid authentication
-- `403 Forbidden` - Insufficient permissions
-- `404 Not Found` - Resource not found
-- `422 Unprocessable Entity` - Validation error
-- `429 Too Many Requests` - Rate limit exceeded
-- `500 Internal Server Error` - Server error
-- `503 Service Unavailable` - Service unavailable
-
-### Rate Limiting
-
-Rate limits are applied per API key/user:
-- **Default:** 60 requests per minute
-- **Authenticated:** 1000 requests per hour
-- **Headers:** Rate limit info is included in response headers:
-  - `X-RateLimit-Limit`: Maximum requests
-  - `X-RateLimit-Remaining`: Remaining requests
-  - `X-RateLimit-Reset`: Reset time (Unix timestamp)
+Common error codes:
+- `VALIDATION_ERROR` - Request validation failed
+- `AUTHENTICATION_REQUIRED` - Authentication token missing or invalid
+- `AUTHORIZATION_FAILED` - Insufficient permissions
+- `RESOURCE_NOT_FOUND` - Requested resource does not exist
+- `RATE_LIMIT_EXCEEDED` - Rate limit exceeded
+- `INTERNAL_ERROR` - Internal server error
 
 ---
 
 ## Webhooks
 
-Webhooks are available for real-time event notifications. Configure webhook URLs in the dashboard.
+Webhook endpoints are available for:
+- Campaign events
+- Attribution events
+- User events
 
-**Supported Events:**
-- `campaign.created`
-- `campaign.updated`
-- `episode.published`
-- `attribution.event`
-- `sponsor.created`
-
-**Webhook Payload:**
-```json
-{
-  "event": "campaign.created",
-  "timestamp": "2024-12-01T12:00:00Z",
-  "data": {
-    "campaign_id": "uuid",
-    "name": "Campaign Name"
-  }
-}
-```
+Configure webhooks via `/api/v1/settings/webhooks`.
 
 ---
 
-## SDKs & Client Libraries
-
-### Python
-
-```python
-import httpx
-
-client = httpx.Client(
-    base_url="https://api.castor.app/api/v1",
-    headers={"Authorization": f"Bearer {token}"}
-)
-
-response = client.get("/podcasts")
-podcasts = response.json()
-```
-
-### JavaScript/TypeScript
-
-```typescript
-const response = await fetch('https://api.castor.app/api/v1/podcasts', {
-  headers: {
-    'Authorization': `Bearer ${token}`
-  }
-});
-const podcasts = await response.json();
-```
-
----
-
-## Changelog
-
-### v1.0.0 (2024-12)
-- Initial API release
-- Authentication endpoints
-- Podcasts, episodes, campaigns endpoints
-- Analytics endpoints
-- Sponsors endpoints
-
----
-
-## Support
-
-For API support:
-- **Email:** api-support@castor.app
-- **Documentation:** https://docs.castor.app/api
-- **Status Page:** https://status.castor.app
-
----
-
-**Documentation Generated By:** Unified Background Agent  
-**Last Updated:** 2024-12
+**Last Updated:** 2024-12-XX  
+**API Version:** 1.0.0
