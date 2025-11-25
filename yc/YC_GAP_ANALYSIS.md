@@ -349,6 +349,250 @@ This document compares the repo + generated docs to YC application and interview
 
 ---
 
+## F. ADDITIONAL INCUBATOR & NEW-VENTURE LENSES
+
+This section evaluates the repository through multiple accelerator and new-venture program lenses beyond YC, identifying strengths, gaps, and prioritized action items for each.
+
+---
+
+### 1. TECHSTARS LENS (Mentorship + Traction + Ecosystem)
+
+**Focus:** Mentor-readiness, explicit KPIs/experiment cadences, ecosystem fit
+
+#### Strengths
+- ✅ **Clear problem statement:** Well-documented in `YC_PRODUCT_OVERVIEW.md` and `README.md`
+- ✅ **Comprehensive architecture:** Production-ready system architecture documented (`ARCHITECTURE.md`)
+- ✅ **Metrics infrastructure:** Event logging (`src/telemetry/events.py`), metrics aggregator (`src/analytics/user_metrics_aggregator.py`), dashboard (`frontend/app/metrics/page.tsx`)
+- ✅ **Distribution plan:** Concrete growth experiments documented (`yc/YC_DISTRIBUTION_PLAN.md`)
+- ✅ **User research framework:** Structured interview protocols (`validation/user-interview-framework.md`)
+
+#### Gaps
+- ⚠️ **No explicit weekly/monthly KPIs:** Metrics exist but no documented experiment cadence or KPI targets
+- ⚠️ **Missing mentor onboarding doc:** No quick-start guide for mentors to understand the product/roadmap
+- ⚠️ **Ecosystem fit unclear:** Not explicitly positioned for specific Techstars verticals (AI, climatetech, etc.)
+- ⚠️ **No experiment log:** Growth experiments planned but not tracked in structured format
+- ⚠️ **Missing traction narrative:** No clear "where we are now" vs "where we're going" story
+
+#### Prioritized TODOs
+1. **Create mentor onboarding document** (`yc/MENTOR_ONBOARDING.md`) - 1-page problem/roadmap summary for quick mentor understanding
+2. **Document explicit KPIs and experiment cadence** (`yc/KPI_DASHBOARD.md`) - Weekly/monthly targets with experiment schedule
+3. **Position for ecosystem fit** (`yc/ECOSYSTEM_FIT.md`) - Identify which Techstars verticals (AI, creator economy, B2B SaaS) this fits
+4. **Create experiment log** (`yc/EXPERIMENT_LOG.md`) - Structured tracking of growth experiments with results
+5. **Add traction narrative** (`yc/TRACTION_NARRATIVE.md`) - Clear "current state → milestones → vision" story
+6. **Create weekly metrics review template** (`yc/WEEKLY_METRICS_REVIEW.md`) - Structured format for weekly KPI reviews
+
+**Cross-References:** TODOs #2, #4, #5 overlap with Lean Startup Lens (#5) and 500 Global Lens (#2)
+
+---
+
+### 2. 500 GLOBAL LENS (Growth, Distribution, Experimentation)
+
+**Focus:** Growth/distribution levers, experiment tracking, data-driven growth
+
+#### Strengths
+- ✅ **Multiple growth levers identified:** Referral program, SEO, shareable reports, partnerships, virality loops (`gtm/virality-loops.md`, `yc/YC_DISTRIBUTION_PLAN.md`)
+- ✅ **Freemium conversion logic:** Usage-based triggers implemented (`src/monetization/pricing.py`, `monetization/pricing-plan.md`)
+- ✅ **Distribution experiments planned:** 5 concrete experiments with goals/metrics (`yc/YC_DISTRIBUTION_PLAN.md`)
+- ✅ **Viral loops documented:** 5 loops with multipliers (`gtm/virality-loops.md`)
+- ✅ **Event tracking infrastructure:** Comprehensive event logging (`src/telemetry/events.py`, `validation/analytics-events.md`)
+
+#### Gaps
+- ⚠️ **Most levers not implemented:** Only freemium conversion exists; referrals, SEO, shareable reports are planned but not built
+- ⚠️ **No experiment tracking:** Experiments planned but no structured tracking of results/hypotheses
+- ⚠️ **Missing channel attribution:** UTM tracking and referral attribution not fully implemented
+- ⚠️ **No growth dashboard:** No unified view of growth metrics by channel
+- ⚠️ **Limited A/B testing infrastructure:** Database schema exists (`experiments` table) but no implementation
+
+#### Prioritized TODOs
+1. **Implement referral program** (`src/api/referrals.py`, `frontend/app/referrals/page.tsx`) - Track viral coefficient, referral attribution
+2. **Build SEO landing pages** (`frontend/app/podcast-analytics/page.tsx`, `frontend/app/podcast-roi-attribution/page.tsx`) - Target high-intent keywords
+3. **Add shareable reports** (`src/api/reports.py`, `frontend/components/ReportShare.tsx`) - Enable sponsor sharing loop
+4. **Create growth experiment tracker** (`yc/GROWTH_EXPERIMENTS.md`) - Structured log of experiments, hypotheses, results
+5. **Implement channel attribution** (`src/api/auth.py` - capture UTM params, `src/business/analytics.py` - calculate CAC by channel)
+6. **Build growth dashboard** (`frontend/app/admin/growth/page.tsx`) - Unified view of signups, activation, conversion by channel
+7. **Add A/B testing framework** (`src/experiments/`) - Implement experiment assignment and tracking
+
+**Cross-References:** TODOs #1, #2, #3 overlap with YC Distribution Plan gaps. TODO #4 overlaps with Lean Startup Lens (#5).
+
+---
+
+### 3. ANTLER LENS (Problem-Founder Fit + Structured Validation)
+
+**Focus:** Problem clarity, problem-solution fit story, validation evidence, zero-to-one readiness
+
+#### Strengths
+- ✅ **Problem clearly articulated:** "Podcast monetization is broken" narrative in `README.md` and `YC_PRODUCT_OVERVIEW.md`
+- ✅ **User personas documented:** Detailed persona matrix with Jobs-to-Be-Done (`research/user-persona-matrix.md`)
+- ✅ **User research framework:** Structured interview protocols (`validation/user-interview-framework.md`)
+- ✅ **Market sizing:** TAM/SAM/SOM analysis (`yc/YC_MARKET_VISION.md`)
+- ✅ **Pricing strategy:** Willingness-to-pay informed pricing tiers (`monetization/pricing-plan.md`)
+
+#### Gaps
+- ⚠️ **No actual user validation evidence:** Framework exists but no documented interviews or validation results
+- ⚠️ **Problem-solution fit story incomplete:** Missing "what problem, for whom, how big, urgency, willingness to pay" synthesis
+- ⚠️ **No founder-market fit narrative:** No documented founder background or why founders are right for this problem
+- ⚠️ **Missing structured hypothesis testing:** No documented hypotheses with test results
+- ⚠️ **No validation experiments running:** Pre-MVP validation plan exists (`validation/pre-mvp-validation.md`) but not executed
+
+#### Prioritized TODOs
+1. **Conduct 10-20 user interviews** (`yc/USER_VALIDATION.md`) - Document findings, quotes, validated pain points
+2. **Create problem-solution fit narrative** (`yc/PROBLEM_SOLUTION_FIT.md`) - Synthesize: problem, who, size, urgency, WTP
+3. **Document founder-market fit** (`yc/FOUNDER_MARKET_FIT.md`) - Why founders are uniquely qualified for this problem
+4. **Run 2-4 week validation experiments** (`yc/VALIDATION_EXPERIMENTS.md`) - Execute pre-MVP validation plan, document results
+5. **Create hypothesis testing log** (`yc/HYPOTHESIS_LOG.md`) - Document hypotheses, tests, results, learnings
+6. **Add validation evidence summary** (`yc/VALIDATION_EVIDENCE.md`) - One-page summary of validation evidence for investors
+
+**Cross-References:** TODOs #1, #4 overlap with YC User Validation gap. TODO #5 overlaps with Lean Startup Lens (#5).
+
+---
+
+### 4. ENTREPRENEUR FIRST LENS (Talent-First + Idea Maze)
+
+**Focus:** Founder capabilities, bias for action, idea maze documentation, trajectory visibility
+
+#### Strengths
+- ✅ **Strong technical execution:** Comprehensive codebase (200+ Python files, 70+ frontend files), production-ready architecture
+- ✅ **Bias for action evident:** MVP complete, metrics infrastructure built, distribution plan ready
+- ✅ **Code quality:** Enterprise-grade architecture, proper testing, monitoring, CI/CD
+- ✅ **Domain expertise:** Podcast-specific features (RSS ingestion, attribution models), industry knowledge documented
+
+#### Gaps
+- ⚠️ **No founder story documented:** Missing founder background, previous experience, why this problem
+- ⚠️ **Idea maze not visible:** No documentation of previous iterations, pivots, or reasoning
+- ⚠️ **No trajectory narrative:** Missing "how we got here" story showing evolution and learning
+- ⚠️ **Missing archived iterations:** No visible evidence of previous approaches or pivots (archived folders, old branches)
+- ⚠️ **Reasoning not documented:** No "why we built X this way" documentation showing decision-making
+
+#### Prioritized TODOs
+1. **Create founder story document** (`yc/FOUNDER_STORY.md`) - Background, why this problem, previous experience, founder-market fit
+2. **Document idea maze** (`yc/IDEA_MAZE.md`) - Previous approaches, pivots, what didn't work, why current approach
+3. **Create trajectory narrative** (`yc/TRAJECTORY.md`) - Evolution of product/strategy, key learnings, milestones
+4. **Archive previous iterations** (`migrations_archive/` already exists) - Document what was archived and why
+5. **Document key decisions** (`yc/DECISION_LOG.md`) - Why we built X this way, alternatives considered, reasoning
+6. **Add execution timeline** (`yc/EXECUTION_TIMELINE.md`) - What was built when, showing velocity and progress
+
+**Cross-References:** TODO #1 overlaps with Antler Lens (#3) founder-market fit. TODO #6 overlaps with YC Execution Evidence gap.
+
+---
+
+### 5. LEAN STARTUP LENS (Hypothesis-Driven)
+
+**Focus:** Explicit hypotheses, hypothesis testing, validated learning, build-measure-learn loops
+
+#### Strengths
+- ✅ **Event tracking infrastructure:** Comprehensive event logging (`src/telemetry/events.py`, `validation/analytics-events.md`)
+- ✅ **Metrics infrastructure:** DAU/WAU/MAU, activation, retention calculations (`src/analytics/user_metrics_aggregator.py`)
+- ✅ **Experiments planned:** Growth experiments with hypotheses (`yc/YC_DISTRIBUTION_PLAN.md`)
+- ✅ **Validation framework:** Pre-MVP validation plan (`validation/pre-mvp-validation.md`)
+
+#### Gaps
+- ⚠️ **No explicit hypotheses documented:** Features exist but no documented hypotheses for problem, customer, feature, revenue, growth
+- ⚠️ **Hypothesis testing not structured:** No clear "hypothesis → test → result → learn → pivot/persevere" loop
+- ⚠️ **Missing validation status:** No clear "untested/partially tested/validated" status for each hypothesis
+- ⚠️ **No smallest experiment identification:** Missing "smallest next experiment" for each hypothesis
+- ⚠️ **Build-measure-learn not visible:** No documentation of learning cycles or pivots based on data
+
+#### Prioritized TODOs
+1. **Document core hypotheses** (`yc/HYPOTHESES.md`) - Problem, customer segment, key feature, revenue model, growth channel hypotheses
+2. **Create hypothesis testing framework** (`yc/HYPOTHESIS_TESTING.md`) - Template for hypothesis → test → result → learn
+3. **Map features to hypotheses** (`yc/FEATURE_HYPOTHESIS_MAP.md`) - Which features test which hypotheses, validation status
+4. **Identify smallest experiments** (`yc/SMALLEST_EXPERIMENTS.md`) - For each hypothesis, smallest test using existing codebase
+5. **Create learning log** (`yc/LEARNING_LOG.md`) - Document validated learning, pivots, persevere decisions
+6. **Add build-measure-learn dashboard** (`frontend/app/admin/experiments/page.tsx`) - Visualize hypothesis tests and results
+
+**Cross-References:** TODOs #1, #3 overlap with Antler Lens (#3) hypothesis testing. TODO #4 overlaps with 500 Global Lens (#2) experiments.
+
+---
+
+### 6. DISCIPLINED ENTREPRENEURSHIP LENS (Beachhead + 24 Steps)
+
+**Focus:** Beachhead market clarity, end-user persona, full lifecycle use case, TAM/SAM/SOM, pricing logic, channel strategy
+
+#### Strengths
+- ✅ **Beachhead identified:** Solo Podcasters (1K-50K downloads) clearly defined (`yc/YC_MARKET_VISION.md`)
+- ✅ **End-user persona detailed:** Solo Podcaster persona with demographics, incentives, pain points (`research/user-persona-matrix.md`)
+- ✅ **TAM/SAM/SOM documented:** Market sizing analysis (`yc/YC_MARKET_VISION.md`)
+- ✅ **Pricing logic defined:** Value-based pricing with WTP data (`monetization/pricing-plan.md`)
+- ✅ **Use case documented:** End-to-end flow in `YC_PRODUCT_OVERVIEW.md` (onboarding → campaign → attribution → report → renewal)
+
+#### Gaps
+- ⚠️ **Full lifecycle use case not explicit:** Flow exists but not clearly labeled as "full lifecycle" or mapped to 24 steps
+- ⚠️ **Channel strategy incomplete:** Distribution plan exists but not explicitly mapped to beachhead acquisition channels
+- ⚠️ **Missing explicit TAM/SAM/SOM breakdown:** Market sizing exists but not clearly labeled as TAM/SAM/SOM
+- ⚠️ **Pricing logic not fully documented:** Pricing tiers exist but reasoning/assumptions not fully explained
+- ⚠️ **Beachhead validation missing:** Beachhead identified but no validation evidence (interviews, early customers)
+
+#### Prioritized TODOs
+1. **Document full lifecycle use case** (`yc/FULL_LIFECYCLE_USECASE.md`) - Map discovery → buy → use → value → ongoing use for beachhead persona
+2. **Create beachhead validation summary** (`yc/BEACHHEAD_VALIDATION.md`) - Evidence that beachhead is right (interviews, early traction)
+3. **Explicitly label TAM/SAM/SOM** (`yc/MARKET_SIZING.md`) - Extract and clearly label TAM/SAM/SOM from existing market vision
+4. **Document pricing logic** (`yc/PRICING_LOGIC.md`) - Assumptions, WTP data, value metrics, conversion triggers
+5. **Map channel strategy to beachhead** (`yc/BEACHHEAD_CHANNELS.md`) - Which channels target beachhead, CAC/LTV by channel
+6. **Create 24-step checklist** (`yc/DISCIPLINED_ENTREPRENEURSHIP.md`) - Map current progress to 24 steps framework
+
+**Cross-References:** TODO #2 overlaps with Antler Lens (#3) validation. TODO #4 overlaps with existing pricing plan.
+
+---
+
+### 7. JOBS-TO-BE-DONE LENS (Outcomes and Alternatives)
+
+**Focus:** Jobs-to-Be-Done clarity, current flows, competing alternatives, improvements for "hire" and stickiness
+
+#### Strengths
+- ✅ **Jobs-to-Be-Done documented:** Detailed JTBD for each persona (`research/user-persona-matrix.md`)
+- ✅ **Current flows exist:** Onboarding flow (`frontend/app/onboarding/page.tsx`), campaign management, report generation
+- ✅ **User research framework:** JTBD-based interview protocols (`validation/user-interview-framework.md`)
+
+#### Gaps
+- ⚠️ **Competing alternatives not documented:** No explicit list of alternatives users "hire" instead
+- ⚠️ **Current flows not mapped to jobs:** Features exist but not explicitly linked to which jobs they serve
+- ⚠️ **Missing "hire" improvements:** No documented improvements to make product more obvious/sticky
+- ⚠️ **Jobs prioritization unclear:** All jobs listed but not prioritized by frequency/importance
+- ⚠️ **Outcomes not measured:** Jobs defined but no metrics for "job success" or "outcome achievement"
+
+#### Prioritized TODOs
+1. **Document competing alternatives** (`yc/COMPETING_ALTERNATIVES.md`) - For each primary job, list alternatives users hire instead
+2. **Map features to jobs** (`yc/FEATURE_JOB_MAP.md`) - Which features serve which jobs, gaps in job coverage
+3. **Create "hire" improvements roadmap** (`yc/JTBD_IMPROVEMENTS.md`) - Quick wins to make product more obvious/sticky for each job
+4. **Prioritize jobs by frequency/importance** (`yc/JTBD_PRIORITIZATION.md`) - Rank jobs, focus on top 3-5
+5. **Define job success metrics** (`yc/JTBD_METRICS.md`) - How to measure if users achieve desired outcomes
+6. **Create job completion flows** (`yc/JTBD_FLOWS.md`) - Map current UX flows to job completion, identify broken/missing steps
+
+**Cross-References:** TODO #2 overlaps with Lean Startup Lens (#5) feature-hypothesis mapping.
+
+---
+
+### 8. PRODUCT-LED GROWTH LENS (If Applicable)
+
+**Focus:** Self-serve onboarding, activation, upgrade flows, PLG primitives, "aha moment" instrumentation
+
+#### Strengths
+- ✅ **Freemium model:** Free tier with conversion triggers (`src/monetization/pricing.py`, `monetization/pricing-plan.md`)
+- ✅ **Self-service onboarding:** Onboarding flow implemented (`frontend/app/onboarding/page.tsx`, `src/automation/onboarding.py`)
+- ✅ **Usage-based upsells:** Conversion triggers based on usage (`monetization/pricing-plan.md`)
+- ✅ **Activation tracking:** Events for onboarding completion, first value delivered (`validation/analytics-events.md`)
+
+#### Gaps
+- ⚠️ **"Aha moment" not instrumented:** No clear definition or tracking of when users experience value
+- ⚠️ **Activation flow incomplete:** Onboarding exists but activation (first value) not clearly defined or optimized
+- ⚠️ **Missing in-product education:** No tooltips, guides, or progressive disclosure for self-service learning
+- ⚠️ **Upgrade triggers not optimized:** Conversion triggers exist but not A/B tested or optimized
+- ⚠️ **Share/invite not implemented:** No in-product sharing or referral mechanisms
+- ⚠️ **Usage-based upgrade triggers incomplete:** Some triggers exist but not all PLG primitives (invites, shares, collaboration)
+
+#### Prioritized TODOs
+1. **Define and instrument "aha moment"** (`yc/AHA_MOMENT.md`) - What is it, when does it happen, how to track, optimize
+2. **Optimize activation flow** (`yc/ACTIVATION_FLOW.md`) - Map onboarding → activation, identify bottlenecks, improve conversion
+3. **Add in-product education** (`frontend/components/ProductTour.tsx`, `frontend/components/Tooltip.tsx`) - Tooltips, guides, progressive disclosure
+4. **Implement share/invite** (`src/api/referrals.py`, `frontend/components/ShareButton.tsx`) - In-product sharing, referral links
+5. **A/B test upgrade triggers** (`src/experiments/upgrade_triggers.py`) - Test different conversion prompts, timing, messaging
+6. **Create PLG metrics dashboard** (`frontend/app/admin/plg/page.tsx`) - Onboarding funnel, activation rate, upgrade conversion, viral coefficient
+7. **Add usage-based upgrade prompts** (`frontend/components/UpgradePrompt.tsx`) - Contextual prompts when users hit limits or show high engagement
+
+**Cross-References:** TODOs #1, #2 overlap with existing activation tracking. TODO #4 overlaps with 500 Global Lens (#2) referral program. TODO #6 overlaps with Techstars Lens (#1) KPI dashboard.
+
+---
+
 ## Gap Summary by Severity
 
 ### HIGH Severity (Address Before YC Application)
