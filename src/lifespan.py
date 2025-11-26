@@ -44,6 +44,8 @@ from src.orchestration import (
 )
 from src.ai import PredictiveEngine
 from src.features.flags import FeatureFlagService
+from src.email.email_service import EmailService, EmailProvider
+from src.email.email_queue import EmailQueue
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +63,14 @@ async def lifespan(app: FastAPI):
     service_name = os.getenv("SERVICE_NAME", "podcast-analytics-api")
     otlp_endpoint = os.getenv("OTLP_ENDPOINT")
     setup_tracing(service_name=service_name, otlp_endpoint=otlp_endpoint)
+    
+    # Setup Sentry error tracking
+    try:
+        from src.monitoring.sentry_setup import init_sentry
+        init_sentry()
+        structured_logger.info("Sentry error tracking initialized")
+    except Exception as e:
+        structured_logger.warning(f"Failed to initialize Sentry: {str(e)}")
     
     # Startup
     structured_logger.info("Starting application...")
@@ -364,6 +374,23 @@ async def lifespan(app: FastAPI):
     feature_flag_service = FeatureFlagService(postgres_conn)
     await feature_flag_service.initialize()
     
+    # Initialize email service
+    email_provider = EmailProvider.SENDGRID if os.getenv("SENDGRID_API_KEY") else EmailProvider.SES
+    email_service = EmailService(
+        provider=email_provider,
+        metrics_collector=metrics_collector,
+        event_logger=event_logger
+    )
+    
+    # Initialize email queue
+    email_queue = EmailQueue(
+        postgres_conn=postgres_conn,
+        email_service=email_service,
+        metrics_collector=metrics_collector,
+        event_logger=event_logger
+    )
+    await email_queue.start()
+    
     # Store services in app state for dependency injection
     app.state.metrics_collector = metrics_collector
     app.state.event_logger = event_logger
@@ -403,6 +430,8 @@ async def lifespan(app: FastAPI):
     app.state.predictive_automation = predictive_automation
     app.state.feature_flag_service = feature_flag_service
     app.state.health_service = health_service
+    app.state.email_service = email_service
+    app.state.email_queue = email_queue
     
     # Start smart scheduler
     await smart_scheduler.start()
@@ -422,6 +451,9 @@ async def lifespan(app: FastAPI):
     structured_logger.info("Shutting down application...")
     
     await smart_scheduler.stop()
+    
+    # Stop email queue
+    await email_queue.stop()
     
     # Close connections
     await postgres_conn.close()
