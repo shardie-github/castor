@@ -1,0 +1,240 @@
+name: Code Quality Gates
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+
+env:
+  PYTHON_VERSION: '3.11'
+  NODE_VERSION: '20'
+
+jobs:
+  code-coverage:
+    name: Code Coverage Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for coverage comparison
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio pytest-cov pytest-xdist coverage[toml]
+      
+      - name: Run tests with coverage
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+          REDIS_URL: redis://localhost:6379
+          JWT_SECRET: test_secret_key_min_32_chars_long_for_ci
+          ENCRYPTION_KEY: test_encryption_key_min_32_chars_long_for_ci
+          SKIP_ENV_VALIDATION: "true"
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: 5432
+          POSTGRES_DATABASE: test_db
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+          ENVIRONMENT: test
+        run: |
+          pytest tests/unit/ tests/integration/ \
+            --cov=src \
+            --cov-report=xml \
+            --cov-report=html \
+            --cov-report=term \
+            --cov-fail-under=50 \
+            -v
+      
+      - name: Check coverage threshold
+        run: |
+          coverage report --fail-under=50 || {
+            echo "❌ Coverage is below 50% threshold"
+            exit 1
+          }
+      
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage.xml
+          flags: backend
+          fail_ci_if_error: false
+      
+      - name: Comment PR with coverage
+        if: github.event_name == 'pull_request'
+        uses: py-cov-action/python-coverage-comment-action@v3
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MINIMUM_GREEN: 50
+          MINIMUM_ORANGE: 40
+
+  code-complexity:
+    name: Code Complexity Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+      
+      - name: Install radon
+        run: pip install radon
+      
+      - name: Check cyclomatic complexity
+        run: |
+          radon cc src/ --min B --show-complexity || {
+            echo "⚠️ High cyclomatic complexity detected"
+            exit 1
+          }
+      
+      - name: Check maintainability index
+        run: |
+          radon mi src/ --min B || {
+            echo "⚠️ Low maintainability index detected"
+            exit 1
+          }
+      
+      - name: Generate complexity report
+        run: |
+          radon cc src/ --json > complexity-report.json || true
+          radon mi src/ --json > maintainability-report.json || true
+      
+      - name: Upload complexity reports
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: complexity-reports
+          path: |
+            complexity-report.json
+            maintainability-report.json
+          retention-days: 30
+
+  frontend-coverage:
+    name: Frontend Coverage Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+      
+      - name: Install dependencies
+        working-directory: ./frontend
+        run: npm ci
+      
+      - name: Run tests with coverage
+        working-directory: ./frontend
+        run: npm run test:coverage
+      
+      - name: Check coverage threshold
+        working-directory: ./frontend
+        run: |
+          COVERAGE=$(cat coverage/coverage-summary.json | jq -r '.total.lines.pct')
+          echo "Coverage: ${COVERAGE}%"
+          if (( $(echo "$COVERAGE < 50" | bc -l) )); then
+            echo "❌ Coverage is below 50% threshold"
+            exit 1
+          fi
+      
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./frontend/coverage/coverage-final.json
+          flags: frontend
+          fail_ci_if_error: false
+
+  code-duplication:
+    name: Code Duplication Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+      
+      - name: Install pydup
+        run: pip install pydup
+      
+      - name: Check for code duplication
+        run: |
+          pydup src/ --min-lines 10 --min-tokens 50 || {
+            echo "⚠️ Code duplication detected"
+            exit 1
+          }
+
+  lint-quality:
+    name: Lint Quality Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+      
+      - name: Install linting tools
+        run: |
+          pip install ruff mypy pylint
+      
+      - name: Run pylint
+        continue-on-error: true
+        run: |
+          pylint src/ --exit-zero --output-format=json > pylint-report.json || true
+          pylint src/ --exit-zero || true
+      
+      - name: Check pylint score
+        run: |
+          SCORE=$(pylint src/ --exit-zero | grep -oP 'rated at \K[\d.]+' || echo "0")
+          echo "Pylint score: $SCORE"
+          if (( $(echo "$SCORE < 7.0" | bc -l) )); then
+            echo "⚠️ Pylint score is below 7.0"
+            exit 1
+          fi
+      
+      - name: Upload lint reports
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: lint-reports
+          path: pylint-report.json
+          retention-days: 30
+
+  summary:
+    name: Quality Gates Summary
+    runs-on: ubuntu-latest
+    needs: [code-coverage, code-complexity, frontend-coverage, code-duplication, lint-quality]
+    if: always()
+    steps:
+      - name: Quality gates summary
+        run: |
+          echo "## Code Quality Gates Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Coverage Requirements" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Backend: Minimum 50%" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Frontend: Minimum 50%" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Code Quality" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Cyclomatic complexity check" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Maintainability index check" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Code duplication check" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Lint quality check" >> $GITHUB_STEP_SUMMARY
