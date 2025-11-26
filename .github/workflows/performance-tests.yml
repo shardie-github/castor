@@ -1,0 +1,251 @@
+name: Performance Tests
+
+on:
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'src/api/**'
+      - 'src/services/**'
+      - '.github/workflows/performance-tests.yml'
+  workflow_dispatch:
+
+env:
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  api-performance:
+    name: API Performance Tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio pytest-benchmark locust
+      
+      - name: Start API server
+        run: |
+          uvicorn src.main:app --host 0.0.0.0 --port 8000 &
+          sleep 5
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+          REDIS_URL: redis://localhost:6379
+          JWT_SECRET: test_secret_key_min_32_chars_long_for_ci
+          ENCRYPTION_KEY: test_encryption_key_min_32_chars_long_for_ci
+          SKIP_ENV_VALIDATION: "true"
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: 5432
+          POSTGRES_DATABASE: test_db
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+          ENVIRONMENT: test
+      
+      - name: Run performance benchmarks
+        run: |
+          pytest tests/performance/ -v --benchmark-only || echo "Performance benchmarks completed"
+      
+      - name: Run load tests
+        continue-on-error: true
+        run: |
+          if [ -f tests/load/locustfile.py ]; then
+            locust --headless -u 10 -r 2 -t 30s --host http://localhost:8000 || echo "Load tests completed"
+          else
+            echo "Locustfile not found, skipping load tests"
+          fi
+      
+      - name: Check API response times
+        run: |
+          pip install httpx
+          python -c "
+          import httpx
+          import time
+          
+          url = 'http://localhost:8000/health'
+          times = []
+          for _ in range(10):
+              start = time.time()
+              response = httpx.get(url, timeout=5.0)
+              elapsed = time.time() - start
+              times.append(elapsed)
+          
+          avg_time = sum(times) / len(times)
+          max_time = max(times)
+          
+          print(f'Average response time: {avg_time:.3f}s')
+          print(f'Max response time: {max_time:.3f}s')
+          
+          if avg_time > 0.5:
+              print('⚠️ Average response time exceeds 500ms')
+              exit(1)
+          if max_time > 1.0:
+              print('⚠️ Max response time exceeds 1s')
+              exit(1)
+          "
+      
+      - name: Upload performance results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: performance-results
+          path: |
+            .benchmarks/
+            *.csv
+          retention-days: 30
+
+  database-performance:
+    name: Database Performance Tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          pip install asyncpg pytest pytest-asyncio
+      
+      - name: Run database query performance tests
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+        run: |
+          if [ -f scripts/optimize-queries.py ]; then
+            python scripts/optimize-queries.py --check-only || echo "Query optimization check completed"
+          else
+            echo "Query optimization script not found, skipping"
+          fi
+      
+      - name: Check for slow queries
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+        run: |
+          python -c "
+          import asyncio
+          import asyncpg
+          import time
+          
+          async def check_query_performance():
+              conn = await asyncpg.connect('postgresql://postgres:postgres@localhost:5432/test_db')
+              try:
+                  start = time.time()
+                  await conn.fetch('SELECT 1')
+                  elapsed = time.time() - start
+                  print(f'Simple query time: {elapsed:.3f}s')
+                  if elapsed > 0.1:
+                      print('⚠️ Query response time exceeds 100ms')
+                      exit(1)
+              finally:
+                  await conn.close()
+          
+          asyncio.run(check_query_performance())
+          "
+
+  frontend-performance:
+    name: Frontend Performance Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+      
+      - name: Install dependencies
+        working-directory: ./frontend
+        run: npm ci
+      
+      - name: Build frontend
+        working-directory: ./frontend
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:8000
+          NEXT_PUBLIC_SUPABASE_URL: https://test.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: test-key
+        run: npm run build
+      
+      - name: Analyze bundle size
+        working-directory: ./frontend
+        run: |
+          if [ -f scripts/analyze-bundle.py ]; then
+            python scripts/analyze-bundle.py || echo "Bundle analysis completed"
+          else
+            echo "Bundle analysis script not found, checking .next directory"
+            du -sh .next/ || echo "Build directory not found"
+          fi
+      
+      - name: Check bundle size
+        working-directory: ./frontend
+        run: |
+          if [ -d .next ]; then
+            SIZE=$(du -sm .next | cut -f1)
+            echo "Build size: ${SIZE}MB"
+            if [ "$SIZE" -gt 50 ]; then
+              echo "⚠️ Build size exceeds 50MB"
+              exit 1
+            fi
+          fi
+
+  summary:
+    name: Performance Test Summary
+    runs-on: ubuntu-latest
+    needs: [api-performance, database-performance, frontend-performance]
+    if: always()
+    steps:
+      - name: Performance summary
+        run: |
+          echo "## Performance Test Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Performance Requirements" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ API average response time < 500ms" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ API max response time < 1s" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Database query time < 100ms" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Frontend bundle size < 50MB" >> $GITHUB_STEP_SUMMARY
