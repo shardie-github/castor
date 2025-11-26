@@ -34,7 +34,7 @@ opentelemetry-sdk==1.21.0
 opentelemetry-exporter-otlp-proto-grpc==1.21.0
 opentelemetry-instrumentation-fastapi==0.42b0
 opentelemetry-instrumentation-httpx==0.42b0
-opentelemetry-instrumentation-asyncpg==0.42b0
+opentelemetry-instrumentation-asyncpg==0.59b0
 sentry-sdk[fastapi]==1.38.0  # Error tracking
 
 # Utilities
