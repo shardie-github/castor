@@ -12,6 +12,13 @@ from enum import Enum
 
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail, Email, To, Content
+try:
+    import boto3
+    from botocore.exceptions import ClientError
+    SES_AVAILABLE = True
+except ImportError:
+    SES_AVAILABLE = False
+
 from src.telemetry.metrics import MetricsCollector
 from src.telemetry.events import EventLogger
 from src.utils.circuit_breaker import (
@@ -71,19 +78,39 @@ class EmailService:
         api_key: Optional[str] = None,
         from_email: Optional[str] = None,
         metrics_collector: Optional[MetricsCollector] = None,
-        event_logger: Optional[EventLogger] = None
+        event_logger: Optional[EventLogger] = None,
+        aws_region: Optional[str] = None
     ):
         self.provider = provider
-        self.api_key = api_key or os.getenv("SENDGRID_API_KEY") or os.getenv("AWS_SES_ACCESS_KEY")
         self.from_email = from_email or os.getenv("FROM_EMAIL", "noreply@podcastanalytics.com")
         self.metrics = metrics_collector
         self.events = event_logger
+        self.client = None
         
-        if provider == EmailProvider.SENDGRID and self.api_key:
-            self.client = SendGridAPIClient(self.api_key)
-        else:
-            self.client = None
-            logger.warning("Email service initialized without API key")
+        if provider == EmailProvider.SENDGRID:
+            self.api_key = api_key or os.getenv("SENDGRID_API_KEY")
+            if self.api_key:
+                self.client = SendGridAPIClient(self.api_key)
+            else:
+                logger.warning("SendGrid API key not found")
+        elif provider == EmailProvider.SES:
+            if not SES_AVAILABLE:
+                logger.error("boto3 not installed. Install with: pip install boto3")
+                return
+            
+            aws_access_key = api_key or os.getenv("AWS_ACCESS_KEY_ID")
+            aws_secret_key = os.getenv("AWS_SECRET_ACCESS_KEY")
+            aws_region = aws_region or os.getenv("AWS_REGION", "us-east-1")
+            
+            if aws_access_key and aws_secret_key:
+                self.client = boto3.client(
+                    'ses',
+                    region_name=aws_region,
+                    aws_access_key_id=aws_access_key,
+                    aws_secret_access_key=aws_secret_key
+                )
+            else:
+                logger.warning("AWS credentials not found for SES")
     
     def _get_template_content(self, template: EmailTemplate, context: Dict) -> tuple[str, str]:
         """Get email subject and body from template"""
@@ -174,53 +201,19 @@ class EmailService:
                 logger.error("Email client not initialized")
                 return False
             
-            # Use circuit breaker to protect against cascading failures
-            async def _send():
-                email_subject, email_body = self._get_template_content(template, context)
-                
-                if subject:
-                    email_subject = subject
-                if body:
-                    email_body = body
-                
-                message = Mail(
-                    from_email=Email(self.from_email),
-                    to_emails=To(to_email),
-                    subject=email_subject,
-                    html_content=Content("text/html", email_body)
-                )
-                
-                response = self.client.send(message)
-                
-                if response.status_code not in [200, 202]:
-                    raise Exception(f"SendGrid API returned status {response.status_code}")
-                
-                return True
+            email_subject, email_body = self._get_template_content(template, context)
             
-            # Execute with circuit breaker and retry
-            try:
-                result = await _sendgrid_circuit_breaker.call(_send)
-                
-                if self.metrics:
-                    self.metrics.increment_counter(
-                        "emails_sent_total",
-                        tags={"template": template.value, "status": "success"}
-                    )
-                if self.events:
-                    await self.events.log_event(
-                        event_type="email.sent",
-                        user_id=None,
-                        properties={"to": to_email, "template": template.value}
-                    )
-                return result
-                
-            except CircuitBreakerOpen as e:
-                logger.error(f"Circuit breaker open for SendGrid: {e}")
-                if self.metrics:
-                    self.metrics.increment_counter(
-                        "emails_sent_total",
-                        tags={"template": template.value, "status": "circuit_open"}
-                    )
+            if subject:
+                email_subject = subject
+            if body:
+                email_body = body
+            
+            if self.provider == EmailProvider.SENDGRID:
+                return await self._send_sendgrid(to_email, email_subject, email_body, template)
+            elif self.provider == EmailProvider.SES:
+                return await self._send_ses(to_email, email_subject, email_body, template)
+            else:
+                logger.error(f"Unknown email provider: {self.provider}")
                 return False
                 
         except Exception as e:
@@ -229,6 +222,96 @@ class EmailService:
                 self.metrics.increment_counter(
                     "emails_sent_total",
                     tags={"template": template.value, "status": "error"}
+                )
+            return False
+    
+    async def _send_sendgrid(
+        self,
+        to_email: str,
+        subject: str,
+        body: str,
+        template: EmailTemplate
+    ) -> bool:
+        """Send email via SendGrid"""
+        async def _send():
+            message = Mail(
+                from_email=Email(self.from_email),
+                to_emails=To(to_email),
+                subject=subject,
+                html_content=Content("text/html", body)
+            )
+            
+            response = self.client.send(message)
+            
+            if response.status_code not in [200, 202]:
+                raise Exception(f"SendGrid API returned status {response.status_code}")
+            
+            return True
+        
+        try:
+            result = await _sendgrid_circuit_breaker.call(_send)
+            
+            if self.metrics:
+                self.metrics.increment_counter(
+                    "emails_sent_total",
+                    tags={"template": template.value, "status": "success", "provider": "sendgrid"}
+                )
+            if self.events:
+                await self.events.log_event(
+                    event_type="email.sent",
+                    user_id=None,
+                    properties={"to": to_email, "template": template.value, "provider": "sendgrid"}
+                )
+            return result
+            
+        except CircuitBreakerOpen as e:
+            logger.error(f"Circuit breaker open for SendGrid: {e}")
+            if self.metrics:
+                self.metrics.increment_counter(
+                    "emails_sent_total",
+                    tags={"template": template.value, "status": "circuit_open", "provider": "sendgrid"}
+                )
+            return False
+    
+    async def _send_ses(
+        self,
+        to_email: str,
+        subject: str,
+        body: str,
+        template: EmailTemplate
+    ) -> bool:
+        """Send email via AWS SES"""
+        try:
+            response = self.client.send_email(
+                Source=self.from_email,
+                Destination={'ToAddresses': [to_email]},
+                Message={
+                    'Subject': {'Data': subject, 'Charset': 'UTF-8'},
+                    'Body': {'Html': {'Data': body, 'Charset': 'UTF-8'}}
+                }
+            )
+            
+            if self.metrics:
+                self.metrics.increment_counter(
+                    "emails_sent_total",
+                    tags={"template": template.value, "status": "success", "provider": "ses"}
+                )
+            if self.events:
+                await self.events.log_event(
+                    event_type="email.sent",
+                    user_id=None,
+                    properties={"to": to_email, "template": template.value, "provider": "ses"}
+                )
+            
+            logger.info(f"Email sent via SES: {response['MessageId']}")
+            return True
+            
+        except ClientError as e:
+            logger.error(f"AWS SES error: {str(e)}")
+            if self.metrics:
+                self.metrics.increment_counter(
+                    "emails_sent_total",
+                    tags={"template": template.value, "status": "error", "provider": "ses"}
                 )
             return False
     

@@ -9,11 +9,13 @@
 **Status:** [FILL IN - Pre-seed, seed, etc.]**
 
 ### Founders
-- [Founder 1 Name]: [FILL IN - %] ([FILL IN - Shares])
-- [Founder 2 Name]: [FILL IN - %] ([FILL IN - Shares])
-- [Founder 3 Name]: [FILL IN - %] ([FILL IN - Shares])
+- Scott Hardie (Founder, CEO & Operator): [FILL IN - %] ([FILL IN - Shares])
 
 **Total Founders:** [FILL IN - %]
+
+**Contact:**
+- Email: scottrmhardie@gmail.com
+- LinkedIn: www.linkedin.com/in/scottrmhardie
 
 ### Investors
 - [Investor 1 Name]: [FILL IN - %] ([FILL IN - Shares])

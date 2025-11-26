@@ -158,7 +158,9 @@ A unified platform combining:
 
 ## How long have the founders known one another and how did you meet?
 
-**[FILL IN - Founder story]**
+**Solo Founder:** Scott Hardie is the sole founder, CEO, and operator of the company.
+
+**Background:** With 15+ years of experience at McGraw-Hill and Pearson Education, Scott has built a track record of driving 125% YOY sales growth through consultative selling, SaaS adoption, and strategic content design. His recent work includes building Hardonia OS (fully automated AI-driven Shopify commerce lab), creating PromptPilot (SaaS framework for prompt refinement), and developing the Daily Intel Suite (9 agents delivering insights twice daily).
 
 **See:** [`yc/TEAM.md`](../yc/TEAM.md) for team details
 
@@ -166,7 +168,13 @@ A unified platform combining:
 
 ## What's an impressive thing the founders have built or achieved?
 
-**[FILL IN - Founder achievements]**
+**Scott Hardie's Key Achievements:**
+
+1. **Hardonia OS** - Built a fully automated AI-driven Shopify commerce lab that replaces 7+ apps with native AI workflows to run and scale eCommerce operations
+2. **PromptPilot** - Created a SaaS framework for orchestrating real-time prompt refinement and workflow automation
+3. **Daily Intel Suite** - Developed 9 agents delivering TikTok, AliExpress, and consumer trend insights twice daily
+4. **125% YOY Sales Growth** - Drove significant growth at McGraw-Hill through consultative selling, SaaS adoption, and strategic content design
+5. **Production-Ready MVP** - Built this podcast analytics platform with 200+ Python files, 70+ frontend files, and enterprise-grade architecture
 
 **See:** [`yc/FOUNDER_STORY.md`](../yc/FOUNDER_STORY.md) for detailed story
 

@@ -296,6 +296,9 @@ Stuck? We've got your back:
 
 - **GitHub Issues**: Found a bug or have a feature idea? [Open an issue](https://github.com/yourusername/podcast-analytics-platform/issues)
 - **GitHub Discussions**: Want to discuss an idea before coding? [Start a discussion](https://github.com/yourusername/podcast-analytics-platform/discussions)
+- **Email**: scottrmhardie@gmail.com
+- **Founder/CEO**: Scott Hardie
+- **LinkedIn**: www.linkedin.com/in/scottrmhardie
 - **Questions**: Not sure where something goes? Ask! We're here to help.
 
 ## Your First Contribution

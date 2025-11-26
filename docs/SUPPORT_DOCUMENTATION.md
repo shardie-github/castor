@@ -285,7 +285,9 @@ Complete support documentation, knowledge base, troubleshooting guides, and supp
 - [Reddit Community](https://reddit.com/r/castor)
 
 ### Contact
-- **Email:** support@castor.app
+- **Email:** scottrmhardie@gmail.com
+- **Founder/CEO:** Scott Hardie
+- **LinkedIn:** www.linkedin.com/in/scottrmhardie
 - **Live Chat:** Available in-app (Professional+)
 - **Phone:** +1-XXX-XXX-XXXX (Enterprise only)
 

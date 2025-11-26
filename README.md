@@ -414,7 +414,9 @@ See [LICENSE](LICENSE) file for details.
 
 - **Issues**: [GitHub Issues](https://github.com/yourusername/podcast-analytics-platform/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/yourusername/podcast-analytics-platform/discussions)
-- **Email**: support@example.com
+- **Email**: scottrmhardie@gmail.com
+- **Founder/CEO**: Scott Hardie
+- **LinkedIn**: www.linkedin.com/in/scottrmhardie
 
 ---
 
