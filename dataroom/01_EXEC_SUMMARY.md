@@ -82,7 +82,24 @@ Unified platform combining:
 
 ## Team
 
-**Status:** [FILL IN - Founder bios, experience, why this problem]
+**Founder:** Scott Hardie - Founder, CEO & Operator
+
+**Contact:**
+- Email: scottrmhardie@gmail.com
+- LinkedIn: www.linkedin.com/in/scottrmhardie
+
+**Background:**
+- 15+ years experience at McGraw-Hill and Pearson Education as Solutions Architect and Portfolio Manager
+- Drove 125% YOY sales growth through consultative selling, SaaS adoption, and strategic content design
+- Built Hardonia OS, a fully automated AI-driven Shopify commerce lab replacing 7+ apps with native AI workflows
+- Created PromptPilot, a SaaS framework for orchestrating real-time prompt refinement and workflow automation
+- Developed the Daily Intel Suite, 9 agents delivering TikTok, AliExpress, and consumer trend insights twice daily
+- Thrives at the intersection of sales, enablement, and technical integration—bridging business objectives with AI-powered execution
+
+**Why This Problem:**
+- Recognized that existing tools don't solve the attribution and ROI problem for podcasters
+- Experience building SaaS platforms and enterprise integrations positions him to solve podcast monetization challenges
+- Deep understanding of how automation and AI can transform manual, time-consuming processes
 
 **See:** [`yc/TEAM.md`](../yc/TEAM.md) for details
 

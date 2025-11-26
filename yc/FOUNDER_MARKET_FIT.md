@@ -7,53 +7,37 @@
 
 ## Founder Background
 
-*[Note: This is a template. Founders should fill in their actual background, experience, and qualifications.]*
+### Scott Hardie - Founder, CEO & Operator
 
-### Founder 1: [Name]
-
-**Background:**
-- [Previous experience, education, relevant work]
-- [Years of experience in relevant domain]
-- [Key achievements, skills, expertise]
-
-**Why This Problem:**
-- [Personal connection to problem]
-- [Previous experience with problem]
-- [Domain expertise]
-
-**Why This Solution:**
-- [Technical expertise]
-- [Product vision]
-- [Execution ability]
-
-**Founder-Market Fit:**
-- [Why this founder is uniquely qualified]
-- [Competitive advantages]
-- [Network/connections]
-
----
-
-### Founder 2: [Name] (If Applicable)
+**Contact:**
+- Email: scottrmhardie@gmail.com
+- LinkedIn: www.linkedin.com/in/scottrmhardie
 
 **Background:**
-- [Previous experience, education, relevant work]
-- [Years of experience in relevant domain]
-- [Key achievements, skills, expertise]
+- 15+ years experience at McGraw-Hill and Pearson Education as Solutions Architect and Portfolio Manager
+- Drove 125% YOY sales growth through consultative selling, SaaS adoption, and strategic content design
+- Built Hardonia OS, a fully automated AI-driven Shopify commerce lab replacing 7+ apps with native AI workflows
+- Created PromptPilot, a SaaS framework for orchestrating real-time prompt refinement and workflow automation
+- Developed the Daily Intel Suite, 9 agents delivering TikTok, AliExpress, and consumer trend insights twice daily
+- Master of Arts (MA), Political Science - Public Opinion & Research Methods, Wilfrid Laurier University (2010-2011)
+- Bachelor of Arts (BA), Political Science and Communication Studies, Wilfrid Laurier University (2006-2010)
 
 **Why This Problem:**
-- [Personal connection to problem]
-- [Previous experience with problem]
-- [Domain expertise]
+- Thrives at the intersection of sales, enablement, and technical integration—bridging business objectives with AI-powered execution
+- Recognized that existing tools don't solve the attribution and ROI problem for podcasters
+- Experience building SaaS platforms and enterprise integrations positions him to solve podcast monetization challenges
+- Deep understanding of how automation and AI can transform manual, time-consuming processes
 
 **Why This Solution:**
-- [Technical expertise]
-- [Product vision]
-- [Execution ability]
+- Technical expertise in AI-first automation, SaaS architecture, and enterprise integrations
+- Product vision grounded in real user pain points and market needs
+- Execution ability proven through building production-ready systems (Hardonia OS, PromptPilot, Daily Intel Suite)
+- Unique combination of business acumen (sales, enablement) and technical depth (AI, automation, SaaS)
 
 **Founder-Market Fit:**
-- [Why this founder is uniquely qualified]
-- [Competitive advantages]
-- [Network/connections]
+- Uniquely qualified through 15+ years of SaaS enablement and enterprise solution design
+- Competitive advantages: AI/automation expertise, SaaS platform experience, consultative selling background
+- Network includes enterprise clients, SaaS practitioners, and educational technology leaders
 
 ---
 
@@ -260,9 +244,9 @@
 ## Next Steps
 
 ### Immediate
-1. Fill in actual founder backgrounds and experiences
-2. Document specific domain expertise and qualifications
-3. Highlight unique competitive advantages
+1. ✅ Founder background documented with full qualifications
+2. ✅ Domain expertise and qualifications captured
+3. ✅ Unique competitive advantages highlighted
 
 ### Short-Term
 1. Conduct user interviews to validate founder-market fit
@@ -271,4 +255,4 @@
 
 ---
 
-*This document should be updated with actual founder backgrounds and validated founder-market fit evidence.*
+*Last Updated: 2024-12*

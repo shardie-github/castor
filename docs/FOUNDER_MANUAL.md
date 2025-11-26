@@ -243,4 +243,8 @@ git push origin main # Deploy frontend (Vercel)
 
 ---
 
-**Last Updated:** 2024-12-XX
+**Last Updated:** 2024-12
+
+**Founder:** Scott Hardie - Founder, CEO & Operator
+- Email: scottrmhardie@gmail.com
+- LinkedIn: www.linkedin.com/in/scottrmhardie

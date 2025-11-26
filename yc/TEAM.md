@@ -7,19 +7,28 @@
 
 ## Founders
 
-### Founder 1 - CEO/Product Lead
+### Scott Hardie - Founder, CEO & Operator
 
-**Role:** CEO, Product Strategy, GTM
+**Role:** Founder, CEO, Product Strategy, GTM, Technical Integration
+
+**Contact:**
+- Email: scottrmhardie@gmail.com
+- LinkedIn: www.linkedin.com/in/scottrmhardie
 
 **Background:**
-- [Previous experience in podcast/media industry or SaaS]
-- [Technical or business background]
-- [Relevant domain expertise]
+- 15+ years experience at McGraw-Hill and Pearson Education as Solutions Architect and Portfolio Manager
+- Drove 125% YOY sales growth through consultative selling, SaaS adoption, and strategic content design
+- Built Hardonia OS, a fully automated AI-driven Shopify commerce lab replacing 7+ apps with native AI workflows
+- Created PromptPilot, a SaaS framework for orchestrating real-time prompt refinement and workflow automation
+- Developed the Daily Intel Suite, 9 agents delivering TikTok, AliExpress, and consumer trend insights twice daily
+- Master of Arts (MA), Political Science - Public Opinion & Research Methods, Wilfrid Laurier University
+- Bachelor of Arts (BA), Political Science and Communication Studies, Wilfrid Laurier University
 
 **Why This Problem:**
-- Experienced pain points firsthand while running podcast operations at scale
-- Recognized that existing tools don't solve the attribution and ROI problem
-- Built solution to solve own problem (founder-market fit)
+- Thrives at the intersection of sales, enablement, and technical integration—bridging business objectives with AI-powered execution
+- Recognized that existing tools don't solve the attribution and ROI problem for podcasters
+- Built solution to solve own problem (founder-market fit) leveraging AI-first automation expertise
+- Experience building SaaS platforms and enterprise integrations positions him to solve podcast monetization challenges
 
 **Responsibilities:**
 - Product strategy and roadmap
@@ -27,83 +36,22 @@
 - GTM and distribution
 - Business model and pricing
 - Fundraising
+- Technical architecture and integration strategy
+- AI/automation system design
 
 **Evidence from Repo:**
 - Comprehensive product strategy (`research/user-persona-matrix.md`, `gtm/`)
 - Detailed pricing strategy (`monetization/pricing-plan.md`)
 - Clear MVP scope (`mvp/mvp-scope.md`)
 - Competitive analysis (`strategy/competitive-moat.md`)
-
----
-
-### Founder 2 - CTO/Engineering Lead
-
-**Role:** CTO, Backend Architecture, Infrastructure
-
-**Background:**
-- [Previous experience in backend engineering, infrastructure, or data systems]
-- [Experience with Python/FastAPI, PostgreSQL, time-series databases]
-- [Experience building scalable SaaS platforms]
-
-**Why This Problem:**
-- Technical challenge: Attribution accuracy requires deep technical expertise
-- Infrastructure challenge: Time-series analytics at scale
-- Multi-tenant architecture: Built for enterprise from day one
-
-**Responsibilities:**
-- Backend architecture and development
-- Database design and optimization
-- Infrastructure and DevOps
-- Technical strategy
-- Engineering team leadership
-
-**Evidence from Repo:**
-- Comprehensive backend architecture (200+ Python files)
-- Production-ready infrastructure (monitoring, security, backups)
-- Multi-tenant architecture (`src/tenants/`)
-- Time-series database optimization (`src/database/timescale.py`)
-- Attribution engine (`src/attribution/`)
-
----
-
-### Founder 3 - Frontend Lead (If Applicable)
-
-**Role:** Frontend Lead, UI/UX, Product Design
-
-**Background:**
-- [Previous experience in frontend development, React/Next.js]
-- [Experience with SaaS product design]
-- [Experience building analytics dashboards]
-
-**Why This Problem:**
-- UX challenge: Make complex analytics accessible to non-technical users
-- Design challenge: Create intuitive workflows for podcasters
-- Product challenge: Balance simplicity with power
-
-**Responsibilities:**
-- Frontend development
-- UI/UX design
-- User experience optimization
-- Product design
-
-**Evidence from Repo:**
-- Modern frontend stack (Next.js 14, React 18, TypeScript)
-- Component architecture (70+ frontend files)
-- UI components (TailwindCSS, HeadlessUI)
+- AI-powered automation systems (`src/orchestration/`, `src/ai/`)
+- Enterprise-grade architecture (multi-tenant, scalable, secure)
 
 ---
 
 ## Early Team / Advisors
 
-### [Role] - [Name] (If Applicable)
-
-**Role:** [Advisor, Early Employee, or Consultant]
-
-**Background:**
-- [Relevant experience]
-
-**Contribution:**
-- [How they help]
+*To be expanded as team grows*
 
 ---
 
@@ -144,14 +92,17 @@
 
 ## Team Gaps (If Any)
 
-**If Solo Founder:**
-- Plan to hire [roles] in [timeframe]
-- Show ability to execute solo (codebase quality)
-- Show product understanding (user research, GTM)
+**Current Status:**
+- Solo founder with strong technical and product execution capabilities
+- Demonstrated ability to execute solo (production-ready codebase with 200+ Python files, 70+ frontend files)
+- Deep product understanding (comprehensive user research, GTM strategy, pricing strategy)
+- Strong AI/automation expertise and SaaS platform experience
 
-**If Missing Roles:**
-- Plan to hire [roles] with [funding]
-- Show ability to identify and hire talent
+**Hiring Plan:**
+- Plan to hire engineering lead/CTO in 3-6 months with funding
+- Plan to hire frontend lead in 6-12 months
+- Plan to hire sales/marketing lead in 6-12 months
+- Show ability to identify and hire talent through network and proven execution
 
 ---
 
@@ -171,4 +122,4 @@
 
 ---
 
-*This document should be updated with real team information before YC application/interview.*
+*Last Updated: 2024-12*
