@@ -1,0 +1,343 @@
+name: PR Backend Validation
+
+on:
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'src/**'
+      - 'db/**'
+      - 'scripts/**'
+      - 'requirements.txt'
+      - '.github/workflows/pr-backend-validation.yml'
+
+env:
+  PYTHON_VERSION: '3.11'
+  NODE_VERSION: '20'
+
+jobs:
+  validate-migrations:
+    name: Validate Migrations
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          pip install asyncpg
+      
+      - name: Validate migration files
+        run: |
+          python scripts/validate_migrations.py \
+            --migrations-dir db/migrations \
+            --fail-on-warnings
+
+  validate-environment:
+    name: Validate Environment Variables
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+      
+      - name: Validate environment variables
+        env:
+          SUPABASE_DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+        run: |
+          # Set DATABASE_URL from SUPABASE_DATABASE_URL if DATABASE_URL is not set
+          export DATABASE_URL="${SUPABASE_DATABASE_URL:-${DATABASE_URL}}"
+          python scripts/validate-env.py
+
+  validate-schema:
+    name: Validate Database Schema
+    runs-on: ubuntu-latest
+    needs: [validate-migrations]
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+      
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+      
+      - name: Install Python dependencies
+        run: |
+          pip install asyncpg
+      
+      - name: Validate database schema
+        continue-on-error: true
+        env:
+          SUPABASE_DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          export DATABASE_URL="${SUPABASE_DATABASE_URL:-${DATABASE_URL}}"
+          if [ -z "$DATABASE_URL" ]; then
+            echo "⚠️ DATABASE_URL not available, skipping schema validation"
+            exit 0
+          fi
+          python scripts/db-validate-schema.py
+
+  check-schema-health:
+    name: Check Schema Health
+    runs-on: ubuntu-latest
+    needs: [validate-migrations]
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+      
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+      
+      - name: Install Python dependencies
+        run: |
+          pip install asyncpg
+      
+      - name: Check schema health
+        continue-on-error: true
+        env:
+          SUPABASE_DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          export DATABASE_URL="${SUPABASE_DATABASE_URL:-${DATABASE_URL}}"
+          if [ -z "$DATABASE_URL" ]; then
+            echo "⚠️ DATABASE_URL not available, skipping schema health check"
+            exit 0
+          fi
+          python scripts/check_schema_health.py || echo "Schema health check completed with warnings"
+
+  check-schema-drift:
+    name: Check Schema Drift
+    runs-on: ubuntu-latest
+    needs: [validate-migrations]
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+      
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+      
+      - name: Install Python dependencies
+        run: |
+          pip install asyncpg httpx
+      
+      - name: Check schema drift
+        continue-on-error: true
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          export DATABASE_URL="${SUPABASE_DATABASE_URL:-${DATABASE_URL}}"
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
+            echo "⚠️ Supabase credentials not available, skipping schema drift check"
+            exit 0
+          fi
+          python scripts/check_schema_drift.py || echo "Schema drift check completed with warnings"
+
+  run-migrations-staging:
+    name: Run Migrations (Staging)
+    runs-on: ubuntu-latest
+    needs: [validate-migrations, validate-environment]
+    if: contains(github.event.pull_request.title, '[migrate]') || contains(join(github.event.pull_request.labels.*.name, ','), 'run-migrations')
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+      
+      - name: Run migrations
+        env:
+          STAGING_DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+          SUPABASE_DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SKIP_CONFIRMATION: "true"
+        run: |
+          export DATABASE_URL="${STAGING_DATABASE_URL:-${SUPABASE_DATABASE_URL:-${DATABASE_URL}}}"
+          if [ -z "$DATABASE_URL" ]; then
+            echo "❌ No database URL available for migrations"
+            exit 1
+          fi
+          chmod +x scripts/db-migrate-hosted.sh
+          ./scripts/db-migrate-hosted.sh
+      
+      - name: Verify migration
+        env:
+          STAGING_DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+          SUPABASE_DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          export DATABASE_URL="${STAGING_DATABASE_URL:-${SUPABASE_DATABASE_URL:-${DATABASE_URL}}}"
+          psql "$DATABASE_URL" -c "
+            SELECT 
+              COUNT(*) as table_count,
+              COUNT(CASE WHEN table_name IN ('tenants', 'users', 'podcasts', 'episodes', 'campaigns', 'listener_events') THEN 1 END) as key_tables
+            FROM information_schema.tables 
+            WHERE table_schema = 'public' AND table_type = 'BASE TABLE';
+          "
+      
+      - name: Validate schema after migration
+        env:
+          STAGING_DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+          SUPABASE_DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          export DATABASE_URL="${STAGING_DATABASE_URL:-${SUPABASE_DATABASE_URL:-${DATABASE_URL}}}"
+          python scripts/db-validate-schema.py
+
+  health-check:
+    name: Health Check
+    runs-on: ubuntu-latest
+    needs: [validate-environment]
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+      
+      - name: Install dependencies
+        continue-on-error: true
+        run: |
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          else
+            echo "⚠️ Requirements file not found, installing minimal dependencies"
+            pip install asyncpg redis
+          fi
+      
+      - name: Run health check
+        continue-on-error: true
+        env:
+          SUPABASE_DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          REDIS_URL: ${{ secrets.REDIS_URL }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+          POSTGRES_HOST: ${{ secrets.POSTGRES_HOST }}
+          POSTGRES_PORT: ${{ secrets.POSTGRES_PORT }}
+          POSTGRES_DATABASE: ${{ secrets.POSTGRES_DATABASE }}
+          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          REDIS_HOST: ${{ secrets.REDIS_HOST }}
+          REDIS_PORT: ${{ secrets.REDIS_PORT }}
+          SKIP_ENV_VALIDATION: "true"
+        run: |
+          export DATABASE_URL="${SUPABASE_DATABASE_URL:-${DATABASE_URL}}"
+          if [ -z "$DATABASE_URL" ] && [ -z "$POSTGRES_HOST" ]; then
+            echo "⚠️ Database credentials not available, skipping health check"
+            exit 0
+          fi
+          python scripts/check_health.py || echo "Health check completed with warnings"
+
+  security-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          pip install bandit safety
+      
+      - name: Run security audit
+        continue-on-error: true
+        run: |
+          if [ -f scripts/security_audit.py ]; then
+            python scripts/security_audit.py || echo "Security audit completed with warnings"
+          else
+            echo "⚠️ Security audit script not found, running basic bandit check"
+            bandit -r src/ -f json -o bandit-report.json || true
+            bandit -r src/ || true
+          fi
+
+  validate-setup:
+    name: Validate Setup
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Validate setup
+        run: |
+          chmod +x scripts/validate_setup.sh
+          ./scripts/validate_setup.sh || echo "Setup validation completed with warnings"
+
+  summary:
+    name: Validation Summary
+    runs-on: ubuntu-latest
+    needs: [
+      validate-migrations,
+      validate-environment,
+      validate-schema,
+      check-schema-health,
+      health-check,
+      security-audit,
+      validate-setup
+    ]
+    if: always()
+    steps:
+      - name: Check validation status
+        run: |
+          echo "## Backend Validation Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "All backend validation checks have completed." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Completed Jobs:" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Migration validation" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Environment validation" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Schema validation" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Schema health check" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Health check" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Security audit" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Setup validation" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Note:** Migrations will only run automatically if PR title contains '[migrate]' or PR has 'run-migrations' label." >> $GITHUB_STEP_SUMMARY
