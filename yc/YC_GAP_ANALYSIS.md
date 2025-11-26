@@ -5,6 +5,108 @@
 
 ---
 
+## MASTER TODO
+
+**10-20 most important remaining tasks, prioritized by MUST / NEXT / LATER**
+
+### MUST (Before YC Application)
+
+1. **Fill in team information** - [`yc/TEAM.md`](TEAM.md)
+   - Priority: MUST
+   - Owner: Founder
+   - Effort: 1 day
+   - Status: ⚠️ Template ready, needs real data
+
+2. **Conduct 10-20 user interviews** - [`yc/USER_VALIDATION.md`](USER_VALIDATION.md)
+   - Priority: MUST
+   - Owner: Founder
+   - Effort: 2-4 weeks
+   - Status: ⚠️ Framework ready, need to conduct interviews
+
+3. **Update data room with real metrics** - [`dataroom/03_METRICS_OVERVIEW.md`](../dataroom/03_METRICS_OVERVIEW.md)
+   - Priority: MUST (if post-traction)
+   - Owner: Founder
+   - Effort: 1 day
+   - Status: ⚠️ Template ready, need real data
+
+### NEXT (Before Interview)
+
+4. **Acquire first 10-20 customers**
+   - Priority: NEXT
+   - Owner: Founder
+   - Effort: 1-3 months
+   - Status: ⚠️ Distribution plan ready, need to execute
+
+5. **Run distribution experiments** - [`yc/YC_DISTRIBUTION_PLAN.md`](YC_DISTRIBUTION_PLAN.md)
+   - Priority: NEXT
+   - Owner: Founder
+   - Effort: 1-3 months
+   - Status: ⚠️ Plan ready, need to execute and track results
+
+6. **Create SEO landing pages** - `frontend/app/podcast-analytics/page.tsx`
+   - Priority: NEXT
+   - Owner: Tech Founder
+   - Effort: 1 week
+   - Status: ⚠️ Strategy ready, need implementation
+
+7. **Update customer proof** - [`dataroom/04_CUSTOMER_PROOF.md`](../dataroom/04_CUSTOMER_PROOF.md)
+   - Priority: NEXT
+   - Owner: Founder
+   - Effort: Ongoing
+   - Status: ⚠️ Template ready, need customer testimonials
+
+### LATER (Nice to Have)
+
+8. **Set up production monitoring** - Sentry, alerts
+   - Priority: LATER
+   - Owner: Tech Founder
+   - Effort: 1 day
+   - Status: ⚠️ Recommended but not blocking
+
+9. **Run security audit** - [`docs/SECURITY_CHECKLIST.md`](../docs/SECURITY_CHECKLIST.md)
+   - Priority: LATER
+   - Owner: Tech Founder
+   - Effort: 1 week
+   - Status: ⚠️ Recommended before scale
+
+10. **Add E2E tests for critical paths** - [`docs/TECH_DUE_DILIGENCE_CHECKLIST.md`](../docs/TECH_DUE_DILIGENCE_CHECKLIST.md)
+    - Priority: LATER
+    - Owner: Tech Founder
+    - Effort: 1 week
+    - Status: ⚠️ Recommended but not blocking
+
+11. **Implement A/B testing framework** - `src/experiments/`
+    - Priority: LATER
+    - Owner: Tech Founder
+    - Effort: 2 weeks
+    - Status: ⚠️ Schema exists, need implementation
+
+12. **Create content marketing/blog** - SEO strategy
+    - Priority: LATER
+    - Owner: Founder
+    - Effort: Ongoing
+    - Status: ⚠️ Strategy ready, need content
+
+13. **Build white-label portals** - Enterprise feature
+    - Priority: LATER
+    - Owner: Tech Founder
+    - Effort: 1 month
+    - Status: ⚠️ Architecture supports it, need implementation
+
+14. **Add partnership integrations** - Podcast hosts, agencies
+    - Priority: LATER
+    - Owner: Founder
+    - Effort: Ongoing
+    - Status: ⚠️ Strategy ready, need partnerships
+
+15. **Optimize PLG metrics** - Activation, upgrade triggers
+    - Priority: LATER
+    - Owner: Tech Founder
+    - Effort: Ongoing
+    - Status: ⚠️ Infrastructure ready, need optimization
+
+---
+
 ## Overview
 
 This document compares the repo + generated docs to YC application and interview expectations, identifying gaps and proposing solutions.
