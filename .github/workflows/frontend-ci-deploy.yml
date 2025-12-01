@@ -18,7 +18,7 @@ jobs:
     name: Build and Test Frontend
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -61,7 +61,7 @@ jobs:
       group: frontend-deploy-${{ github.head_ref }}
       cancel-in-progress: true
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -132,7 +132,7 @@ jobs:
       group: frontend-deploy-production
       cancel-in-progress: true
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       
       - name: Set up Node.js
         uses: actions/setup-node@v4
