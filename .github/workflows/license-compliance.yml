@@ -42,7 +42,7 @@ jobs:
       
       - name: Upload license report
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v5
         with:
           name: backend-licenses
           path: backend-licenses.json
@@ -82,7 +82,7 @@ jobs:
       
       - name: Upload license report
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v5
         with:
           name: frontend-licenses
           path: frontend/frontend-licenses.json

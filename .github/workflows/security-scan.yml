@@ -56,7 +56,7 @@ jobs:
       
       - name: Upload audit results
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v5
         with:
           name: backend-security-audit
           path: backend-audit.json
@@ -87,7 +87,7 @@ jobs:
       
       - name: Upload audit results
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v5
         with:
           name: frontend-security-audit
           path: frontend/frontend-audit.json
@@ -107,7 +107,7 @@ jobs:
       
       - name: Upload Bandit report
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v5
         with:
           name: bandit-security-report
           path: bandit-report.json
