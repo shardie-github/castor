@@ -18,7 +18,7 @@
     "ci:check": "npm run lint && npm run type-check && npm test -- --watchAll=false && npm run build"
   },
   "dependencies": {
-    "next": "^14.0.0",
+    "next": "^14.2.35",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "@tanstack/react-query": "^5.0.0",
